@@ -1,0 +1,202 @@
+[
+  {
+    "id": "p1",
+    "name": "Maharani Bridal Haar",
+    "category": "Bridal",
+    "price": "₹ 3,85,000",
+    "description": "Temple-inspired 22K bridal necklace adorned with rubies and south sea pearls.",
+    "craftsmanship": "Handcrafted by 4th-generation karigars in Hyderabad. Features traditional nakshi work, detailed filigree borders, and hand-selected natural Burmese rubies.",
+    "image": "p5.jpg",
+    "tags": ["bridal", "necklace", "temple", "22k", "pearl"]
+  },
+  {
+    "id": "p2",
+    "name": "Royal Polki Choker",
+    "category": "Bridal",
+    "price": "₹ 2,72,500",
+    "description": "Uncut polki necklace with fine emerald beads and gold drop accents.",
+    "craftsmanship": "Created using the classic Jadau setting technique. Embellished with raw, uncut diamonds (Polki) framed with delicate gold wire and premium Zambian emeralds.",
+    "image": "p8.jpg",
+    "tags": ["bridal", "polki", "choker", "emerald", "gold"]
+  },
+  {
+    "id": "p3",
+    "name": "Solitaire Brilliance Ring",
+    "category": "Diamond",
+    "price": "₹ 2,15,000",
+    "description": "1.2ct VVS solitaire on a sleek 18K platinum and yellow gold knife-edge band.",
+    "craftsmanship": "Precision-set GIA-certified round brilliant cut diamond on a hand-polished multi-metal band with a six-prong platinum crown for maximum light fire.",
+    "image": "p3.jpg",
+    "tags": ["diamond", "ring", "solitaire", "18k", "platinum"]
+  },
+  {
+    "id": "p4",
+    "name": "Riviera Tennis Bracelet",
+    "category": "Diamond",
+    "price": "₹ 1,68,000",
+    "description": "Channel-set round brilliant diamonds along a flexible 18K white gold link.",
+    "craftsmanship": "Individually linked settings aligned perfectly by hand. Total weight of 4.5 carats of ethically sourced round brilliant diamonds of VS+ clarity.",
+    "image": "p7.jpg",
+    "tags": ["diamond", "bracelet", "tennis", "white-gold"]
+  },
+  {
+    "id": "p5",
+    "name": "Empress Chandelier Drops",
+    "category": "Earrings",
+    "price": "₹ 92,800",
+    "description": "Pear-cut diamonds suspended on filigree 18K gold chandelier drops.",
+    "craftsmanship": "Delicate openwork filigree drops incorporating micro-pave diamonds with suspended drops designed to sway and catch candlelight.",
+    "image": "p4.jpg",
+    "tags": ["earrings", "drops", "diamond", "18k"]
+  },
+  {
+    "id": "p6",
+    "name": "Aurelia Diamond Pendant",
+    "category": "Diamond",
+    "price": "₹ 48,500",
+    "description": "Cushion-cut central diamond framed in a halo of 18K rose gold.",
+    "craftsmanship": "Claw-set cushion cut solitaire surrounded by a pave-set diamond halo, hung on an ultra-fine 18K rose gold Italian link chain.",
+    "image": "p1.jpg",
+    "tags": ["diamond", "pendant", "rose-gold", "necklace"]
+  },
+  {
+    "id": "p7",
+    "name": "Majestic Peacock Jhumkas",
+    "category": "Earrings",
+    "price": "₹ 1,12,000",
+    "description": "Exquisite 22K gold jhumkas featuring detailed peacock carvings and seed pearl fringes.",
+    "craftsmanship": "Carved using traditional embossing (Chitai work). Accented with fine red enamel work and finished with cascades of natural Basra seed pearls.",
+    "image": "p2.jpg",
+    "tags": ["earrings", "jhumka", "gold", "peacock", "22k"]
+  },
+  {
+    "id": "p8",
+    "name": "Temple Heritage Haram",
+    "category": "Gold Necklace",
+    "price": "₹ 3,20,000",
+    "description": "Long 22K gold heritage haram necklace depicting goddess Lakshmi with floral medallions.",
+    "craftsmanship": "Hand-hammered repoussé work in pure 22K gold. Takes over 80 hours of craftsmanship to form the detailed relief work, accented by cabochon rubies.",
+    "image": "p6.jpg",
+    "tags": ["gold", "necklace", "temple", "haram", "22k"]
+  },
+  {
+    "id": "p9",
+    "name": "Aura Gold Bangle Set",
+    "category": "Gold Necklace",
+    "price": "₹ 1,45,000",
+    "description": "Pair of antique-finished 22K gold kadas with detailed geometric engraving.",
+    "craftsmanship": "Hand-engraved vintage-finished gold bangles with screw clasps. Created with dense gold sheeting, ensuring heavy heirloom build quality.",
+    "image": "cat-necklace.jpg",
+    "tags": ["gold", "bangle", "kada", "antique", "22k"]
+  },
+  {
+    "id": "p10",
+    "name": "Shahi Kundan Set",
+    "category": "Wedding Collection",
+    "price": "₹ 4,50,000",
+    "description": "Ornate kundan necklace with matching drop earrings, backed by fine meenakari work.",
+    "craftsmanship": "Pure 24K gold foil (Kundan) setting bordering glass stones, backed by intricate red and green meenakari (enameling) depicting Royal Mughal gardens.",
+    "image": "cat-wedding.jpg",
+    "tags": ["wedding", "kundan", "necklace", "meenakari", "set"]
+  },
+  {
+    "id": "p11",
+    "name": "Nizam Gemstone Choker",
+    "category": "Wedding Collection",
+    "price": "₹ 5,10,000",
+    "description": "Magnificent multi-layered necklace of Zambian emerald beads and certified uncut diamonds.",
+    "craftsmanship": "Inspired by the treasures of the Deccan. Threaded with high-luster matched emerald beads and structured with 22K gold bars encrusted with uncut diamonds.",
+    "image": "cat-bridal.jpg",
+    "tags": ["wedding", "emerald", "choker", "nizam", "luxury"]
+  },
+  {
+    "id": "p12",
+    "name": "Dewdrop Diamond Studs",
+    "category": "Earrings",
+    "price": "₹ 64,200",
+    "description": "Classic three-stone diamond cluster studs shaped like morning dewdrops.",
+    "craftsmanship": "Claw-set round and pear cut diamonds totaling 0.6 carats, mounted in hypoallergenic 18K white gold alloy with secure screw backings.",
+    "image": "p4.jpg",
+    "tags": ["earrings", "studs", "diamond", "white-gold"]
+  },
+  {
+    "id": "p13",
+    "name": "Elegant Gold Choker",
+    "category": "Gold Necklace",
+    "price": "₹ 1,85,000",
+    "description": "Modern collar choker crafted in brushed and polished 22K yellow gold.",
+    "craftsmanship": "Features alternating links of high-polish and sand-blasted matte gold, forming a flexible ribbon-like collar that contours comfortably around the neck.",
+    "image": "cat-necklace.jpg",
+    "tags": ["gold", "necklace", "choker", "modern", "22k"]
+  },
+  {
+    "id": "p14",
+    "name": "Floral Diamond Bangle",
+    "category": "Diamond",
+    "price": "₹ 2,30,000",
+    "description": "Delicate diamond bangle in 18K white gold with repeating jasmine motifs.",
+    "craftsmanship": "Hand-set with alternating brilliant-cut and baguette-cut diamonds to simulate flower petals and stems, utilizing a hidden click-lock safety clasp.",
+    "image": "cat-diamond.jpg",
+    "tags": ["diamond", "bangle", "floral", "white-gold"]
+  },
+  {
+    "id": "p15",
+    "name": "Bridal Matha Patti",
+    "category": "Bridal",
+    "price": "₹ 95,000",
+    "description": "Traditional forehead ornament in 22K gold plated silver with kundan and rubies.",
+    "craftsmanship": "Traditional Gota-style gold-foil work accented with red glass rubies and finished with hanging pearl beads along the temple line.",
+    "image": "p2.jpg",
+    "tags": ["bridal", "matha-patti", "kundan", "pearl"]
+  },
+  {
+    "id": "p16",
+    "name": "Antique Lakshmi Kasu",
+    "category": "Gold Necklace",
+    "price": "₹ 2,90,000",
+    "description": "A classic Kasulaperu coin necklace featuring repetitive coins of Goddess Lakshmi.",
+    "craftsmanship": "Authentic temple reproduction. Each Lakshmi coin is individually stamped, antiqued with ash-finish, and linked to a heavy gold cord.",
+    "image": "p6.jpg",
+    "tags": ["gold", "necklace", "kasu", "temple", "22k"]
+  },
+  {
+    "id": "p17",
+    "name": "Princess Engagement Ring",
+    "category": "Diamond",
+    "price": "₹ 3,40,000",
+    "description": "Stunning 1.5ct princess cut diamond on a pave-set white gold diamond band.",
+    "craftsmanship": "Features a central GIA princess-cut stone with a micro-pave band containing 24 round diamonds for extra brilliance.",
+    "image": "p3.jpg",
+    "tags": ["diamond", "ring", "engagement", "princess-cut"]
+  },
+  {
+    "id": "p18",
+    "name": "Emerald Drop Earrings",
+    "category": "Earrings",
+    "price": "₹ 1,55,000",
+    "description": "High-end drop earrings combining emerald cut green emeralds and teardrop diamonds.",
+    "craftsmanship": "18K white gold settings suspending matched Colombian emeralds below brilliant marquise-cut diamond posts.",
+    "image": "cat-earrings.jpg",
+    "tags": ["earrings", "emerald", "diamond", "drops"]
+  },
+  {
+    "id": "p19",
+    "name": "Traditional Polki Nath",
+    "category": "Wedding Collection",
+    "price": "₹ 55,000",
+    "description": "Elegant bridal nose ring set with polki diamonds and ruby beads.",
+    "craftsmanship": "Authentic Jadau craftsman piece using thin 24K gold foils to secure uncut diamonds, strung on an ultra-light gold side chain.",
+    "image": "p1.jpg",
+    "tags": ["wedding", "nath", "polki", "ruby", "bridal"]
+  },
+  {
+    "id": "p20",
+    "name": "Heritage Bridal Vanki",
+    "category": "Wedding Collection",
+    "price": "₹ 1,25,000",
+    "description": "V-shaped traditional armlet with peacock motifs, rubies, and emeralds.",
+    "craftsmanship": "Flexible 22K gold armlet core padded with silk thread backing, decorated with intricate repousse peafowls set with cabochon gemstones.",
+    "image": "p8.jpg",
+    "tags": ["wedding", "vanki", "armlet", "gold", "22k"]
+  }
+]

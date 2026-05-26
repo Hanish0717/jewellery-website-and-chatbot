@@ -13,14 +13,17 @@ import { ChatWidget, type ChatHandle } from "@/components/ChatWidget";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aurum Vault — Luxury Gold & Diamond Jewellery, Hyderabad" },
+      { title: "Aurum Vault — Luxury Gold & Diamond Jewellery, Palakonda" },
       {
         name: "description",
         content:
-          "Aurum Vault: heritage gold and diamond jewellery atelier in Hyderabad. Bridal, diamond and wedding collections with an AI jewellery consultant.",
+          "Aurum Vault: heritage gold and diamond jewellery atelier in Palakonda. Bridal, diamond and wedding collections with an AI jewellery consultant.",
       },
-      { property: "og:title", content: "Aurum Vault — Luxury Jewellery, Hyderabad" },
-      { property: "og:description", content: "Timeless gold and diamond jewellery with an AI consultant." },
+      { property: "og:title", content: "Aurum Vault — Luxury Jewellery, Palakonda" },
+      {
+        property: "og:description",
+        content: "Timeless gold and diamond jewellery with an AI consultant.",
+      },
     ],
   }),
   component: Index,

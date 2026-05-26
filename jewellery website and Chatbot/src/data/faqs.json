@@ -1,0 +1,77 @@
+[
+  {
+    "question": "What are your showroom timings?",
+    "answer": "Our Palakonda showroom is open daily from 10:30 AM to 9:00 PM, including on Sundays.",
+    "category": "timings"
+  },
+  {
+    "question": "Where is the Aurum Vault showroom located?",
+    "answer": "We are located near the Main Complex, Srikakulam District, Palakonda, Andhra Pradesh – 532440.",
+    "category": "location"
+  },
+  {
+    "question": "Do you offer private consultations?",
+    "answer": "Yes, we arrange private, one-on-one appointments for bridal couples and clients looking for high-value bespoke designs. You can book an appointment directly through our AI assistant.",
+    "category": "consultations"
+  },
+  {
+    "question": "How do I schedule a bridal appointment?",
+    "answer": "You can schedule a bridal appointment by interacting with our AI Jewellery Consultant (click 'Talk to Jewellery Expert'), calling our private line at +91 98480 22200, or visiting our boutique in Palakonda.",
+    "category": "bridal appointments"
+  },
+  {
+    "question": "What gold purity standards do you sell?",
+    "answer": "We deal exclusively in BIS Hallmarked gold, offering 22K (916 purity) for traditional gold ornaments and 18K gold or platinum for diamond and gemstone jewellery.",
+    "category": "gold purity"
+  },
+  {
+    "question": "Are your diamonds certified?",
+    "answer": "Yes, all our diamond creations are certified by leading international laboratories, primarily the GIA (Gemological Institute of America) and IGI (International Gemological Institute), ensuring VVS/VS clarity.",
+    "category": "certifications"
+  },
+  {
+    "question": "Can I place a custom order for a bespoke piece?",
+    "answer": "Absolutely. Our 4th-generation master karigars specialize in turning your ideas into custom jewellery. You can bring reference designs, and we will sketch and craft it for you within 4-6 weeks.",
+    "category": "custom orders"
+  },
+  {
+    "question": "Do you have any active offers or discounts?",
+    "answer": "We maintain transparent, honest pricing on gold rate by weight. We periodically run special promotions on making charges during major festive seasons like Akshaya Tritiya, Dhanteras, and wedding seasons.",
+    "category": "offers"
+  },
+  {
+    "question": "Do you offer buyback and exchange guarantees?",
+    "answer": "Yes, we offer a 100% buyback guarantee on gold purity by weight at prevailing market rates, and transparent exchange values on GIA/IGI certified diamonds.",
+    "category": "policies"
+  },
+  {
+    "question": "How do you source your gemstones?",
+    "answer": "All diamonds and precious gemstones (rubies, emeralds, sapphires) are conflict-free and ethically sourced through GIA-approved channels.",
+    "category": "certifications"
+  },
+  {
+    "question": "Can you remodel my antique heirloom gold jewellery?",
+    "answer": "Yes, we specialize in resetting family heirloom stones or melting and reshaping antique gold ornaments into contemporary silhouettes while guaranteeing the raw gold weight is fully preserved.",
+    "category": "custom orders"
+  },
+  {
+    "question": "Do you ship jewellery across India?",
+    "answer": "Yes, for custom or virtual consultations, we provide fully insured, secure transit door-delivery across major cities in India.",
+    "category": "policies"
+  },
+  {
+    "question": "What is the typical time frame for custom engagement rings?",
+    "answer": "Bespoke solitaire and engagement rings typically require 14 to 21 business days from design confirmation to final polishing.",
+    "category": "custom orders"
+  },
+  {
+    "question": "Are payment transactions secure, and what methods are accepted?",
+    "answer": "We accept credit/debit cards, UPI, RTGS/NEFT bank transfers, and standard cash transactions conforming to Indian tax guidelines.",
+    "category": "policies"
+  },
+  {
+    "question": "What makes Aurum Vault different from other jewellers?",
+    "answer": "Our brand legacy since 2003, certified quality stones, BIS hallmark guarantee, and our relationship-driven concierge model, powered by 4th-generation artisanal karigars.",
+    "category": "brand"
+  }
+]

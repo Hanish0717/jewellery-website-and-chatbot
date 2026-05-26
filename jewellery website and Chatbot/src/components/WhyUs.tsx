@@ -3,17 +3,26 @@ import { ShieldCheck, Gem, Hammer, Users, Crown } from "lucide-react";
 const items = [
   { icon: ShieldCheck, title: "BIS Hallmarked", desc: "Every gram, certified pure." },
   { icon: Gem, title: "Certified Diamonds", desc: "GIA & IGI graded, conflict-free." },
-  { icon: Hammer, title: "Master Craftsmanship", desc: "Hand-finished by 4th-generation karigars." },
+  {
+    icon: Hammer,
+    title: "Master Craftsmanship",
+    desc: "Hand-finished by 4th-generation karigars.",
+  },
   { icon: Users, title: "Trusted by Thousands", desc: "Over 25,000 families & counting." },
   { icon: Crown, title: "20+ Years Legacy", desc: "Two decades of heritage jewellery." },
 ];
 
 export function WhyUs() {
   return (
-    <section id="about" className="relative bg-ink px-6 py-24 text-white md:px-12 md:py-32 border-t border-gold/10">
+    <section
+      id="about"
+      className="relative bg-ink px-6 py-24 text-white md:px-12 md:py-32 border-t border-gold/10"
+    >
       <div className="mx-auto max-w-7xl">
         <div className="mb-16 text-center md:mb-24">
-          <p className="mb-3 text-[10px] md:text-xs uppercase tracking-[0.35em] text-gold font-semibold">— The Aurum Promise</p>
+          <p className="mb-3 text-[10px] md:text-xs uppercase tracking-[0.35em] text-gold font-semibold">
+            — The Aurum Promise
+          </p>
           <h2 className="font-display text-4xl md:text-5xl tracking-wide">
             Crafted with <em className="text-gold not-italic font-light">integrity</em>
           </h2>
