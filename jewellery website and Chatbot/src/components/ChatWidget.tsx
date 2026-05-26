@@ -538,7 +538,7 @@ export function ChatWidget({
           </div>
 
           {/* Suggestions block */}
-          {messages.length <= 2 && !showLeadForm && (
+          {messages.length <= 2 && (
             <div className="flex flex-wrap gap-2 border-t border-gold/10 bg-cream/20 px-5 py-4">
               {suggestions.map((s) => (
                 <button
