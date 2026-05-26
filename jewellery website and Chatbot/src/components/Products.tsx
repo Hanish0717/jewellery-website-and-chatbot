@@ -54,11 +54,34 @@ const matchesFilter = (productCategory: string, filter: string) => {
   return productCategory === filter;
 };
 
-export function Products({ onAskAi }: { onAskAi: (name: string) => void }) {
+export function Products({
+  products: dbProducts,
+  onAskAi,
+}: {
+  products?: { id?: number | string; name: string; price: string; category: string; description: string; imageUrl: string }[];
+  onAskAi: (name: string) => void;
+}) {
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const filteredProducts = (productsData as Product[]).filter((p) =>
+  const displayProducts: Product[] =
+    dbProducts && dbProducts.length > 0
+      ? dbProducts.map((p) => {
+          const filename = p.imageUrl ? p.imageUrl.split("/").pop() || "p1.jpg" : "p1.jpg";
+          return {
+            id: String(p.id || p.name),
+            name: p.name,
+            category: p.category,
+            price: p.price,
+            description: p.description,
+            craftsmanship: "Exquisite hand-finished luxury, designed with meticulous attention to detail.",
+            image: filename,
+            tags: [p.category],
+          };
+        })
+      : (productsData as Product[]);
+
+  const filteredProducts = displayProducts.filter((p) =>
     matchesFilter(p.category, selectedFilter),
   );
 
