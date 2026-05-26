@@ -83,78 +83,86 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Open jewellery expert chat"
-        className={`fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-ink px-5 py-4 text-gold shadow-2xl shadow-black/30 ring-1 ring-gold/40 transition-all hover:scale-[1.03] md:bottom-7 md:right-7 ${
+        className={`fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-full bg-ink px-6 py-4.5 text-gold shadow-[0_15px_40px_rgba(212,175,55,0.25)] border border-gold/40 transition-all duration-300 hover:scale-[1.05] hover:shadow-[0_20px_50px_rgba(212,175,55,0.35)] active:scale-95 md:bottom-8 md:right-8 ${
           open ? "opacity-0 pointer-events-none scale-90" : "opacity-100"
         }`}
       >
         <span className="relative flex h-5 w-5 items-center justify-center">
           <span className="absolute inset-0 animate-ping rounded-full bg-gold/40" />
-          <Sparkles className="relative h-5 w-5" />
+          <Sparkles className="relative h-5 w-5 text-gold" />
         </span>
-        <span className="hidden text-xs uppercase tracking-[0.2em] sm:inline">Jewellery Expert</span>
+        <span className="hidden text-[10px] uppercase tracking-[0.25em] font-semibold sm:inline">AI Consultant</span>
       </button>
 
       {/* Panel */}
       <div
-        className={`fixed inset-0 z-50 flex items-end justify-end p-0 md:p-6 transition-all ${
+        className={`fixed inset-0 z-50 flex items-end justify-end p-0 md:p-6 transition-all duration-500 ${
           open ? "pointer-events-auto" : "pointer-events-none"
         }`}
       >
-        {/* mobile backdrop */}
+        {/* Backdrop for focus */}
         <div
           onClick={() => setOpen(false)}
-          className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity md:hidden ${
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${
             open ? "opacity-100" : "opacity-0"
           }`}
         />
+        
+        {/* Chat window container */}
         <div
-          className={`relative flex h-[88svh] w-full flex-col overflow-hidden rounded-t-2xl bg-white/90 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-all duration-500 md:h-[600px] md:max-h-[80vh] md:w-[400px] md:rounded-2xl ${
-            open ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+          className={`relative flex h-full md:h-[620px] md:max-h-[82vh] w-full md:w-[410px] flex-col overflow-hidden rounded-t-2xl md:rounded-2xl bg-white/95 md:bg-white/90 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] border border-gold/10 backdrop-blur-2xl transition-all duration-500 ${
+            open ? "translate-y-0 opacity-100 scale-100" : "translate-y-12 opacity-0 scale-95"
           }`}
         >
-          {/* header */}
-          <div className="relative flex items-center justify-between bg-ink px-5 py-4 text-white">
+          {/* Header */}
+          <div className="relative flex items-center justify-between bg-ink px-6 py-5 text-white border-b border-gold/25">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/15 ring-1 ring-gold/50">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/15 border border-gold/40 shadow-inner">
                 <Sparkles className="h-5 w-5 text-gold" />
               </span>
               <div>
-                <p className="font-display text-base leading-tight">Anaya</p>
-                <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Jewellery Consultant · Online
+                <p className="font-display text-lg tracking-wide leading-tight">Anaya</p>
+                <p className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.22em] text-gold/80 font-light mt-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> AI Jewellery Consultant
                 </p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="text-white/70 hover:text-gold">
+            <button 
+              onClick={() => setOpen(false)} 
+              className="text-white/60 hover:text-gold p-1.5 rounded-full hover:bg-white/5 transition-colors"
+              aria-label="Close chat"
+            >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* messages */}
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-cream to-white px-4 py-5">
+          {/* Messages body */}
+          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-cream/30 to-white/90 px-5 py-6">
             {messages.map((m, i) => (
               <div
                 key={i}
                 className={`flex animate-fade-up ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-4.5 py-3 text-xs md:text-sm leading-relaxed tracking-wide font-light ${
                     m.role === "user"
-                      ? "rounded-br-sm bg-ink text-white"
-                      : "rounded-bl-sm border border-gold/20 bg-white text-ink shadow-sm"
+                      ? "rounded-br-sm bg-ink text-gold border border-gold/20 shadow-md"
+                      : "rounded-bl-sm border border-gold/15 bg-white text-ink shadow-sm"
                   }`}
                 >
                   {m.text}
                 </div>
               </div>
             ))}
+            
+            {/* Custom typing dots */}
             {typing && (
               <div className="flex justify-start">
-                <div className="flex gap-1 rounded-2xl rounded-bl-sm border border-gold/20 bg-white px-4 py-3">
+                <div className="flex gap-1.5 rounded-2xl rounded-bl-sm border border-gold/10 bg-white/80 px-5 py-3.5 shadow-sm">
                   {[0, 1, 2].map((i) => (
                     <span
                       key={i}
-                      className="h-1.5 w-1.5 animate-shimmer rounded-full bg-gold"
+                      className="h-1.5 w-1.5 rounded-full bg-gold typing-dot"
                       style={{ animationDelay: `${i * 0.15}s` }}
                     />
                   ))}
@@ -163,14 +171,14 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
             )}
           </div>
 
-          {/* suggestions */}
+          {/* Suggestions block */}
           {messages.length <= 2 && (
-            <div className="flex flex-wrap gap-2 border-t border-border/60 bg-white/80 px-4 py-3">
+            <div className="flex flex-wrap gap-2 border-t border-gold/10 bg-cream/20 px-5 py-4">
               {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="rounded-full border border-gold/40 bg-cream px-3 py-1.5 text-[11px] text-ink transition-all hover:bg-gold hover:text-ink"
+                  className="rounded-full border border-gold/25 bg-white/90 px-3.5 py-2 text-[10px] uppercase tracking-[0.18em] text-ink transition-all duration-300 hover:bg-gold hover:text-ink hover:border-gold hover:-translate-y-0.5 active:scale-95 shadow-sm"
                 >
                   {s}
                 </button>
@@ -178,26 +186,26 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
             </div>
           )}
 
-          {/* input */}
+          {/* Chat Form input */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               send(input);
             }}
-            className="flex items-center gap-2 border-t border-border bg-white px-3 py-3"
+            className="flex items-center gap-3 border-t border-gold/10 bg-white px-5 py-4"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about a piece, price or occasion…"
-              className="flex-1 rounded-full bg-cream px-4 py-2.5 text-sm text-ink outline-none ring-1 ring-transparent focus:ring-gold/50"
+              placeholder="Ask about a piece, budget or occasion…"
+              className="flex-1 rounded-full bg-cream/40 border border-gold/10 px-5 py-3 text-xs md:text-sm text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
             />
             <button
               type="submit"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-gold transition-all hover:bg-gold hover:text-ink"
-              aria-label="Send"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-ink text-gold border border-gold/20 shadow-md transition-all duration-300 hover:bg-gold hover:text-ink hover:border-gold active:scale-90"
+              aria-label="Send message"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4.5 w-4.5" />
             </button>
           </form>
         </div>

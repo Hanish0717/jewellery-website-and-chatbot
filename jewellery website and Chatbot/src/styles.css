@@ -116,10 +116,70 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
+  .glass-luxury {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(212, 175, 55, 0.15);
+  }
+  .glass-luxury-dark {
+    background: rgba(20, 20, 20, 0.82);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+  }
+  .shadow-gold-glow {
+    box-shadow: 0 10px 40px -10px oklch(0.72 0.13 75 / 0.12);
+  }
+  .hover-shadow-gold-glow {
+    transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .hover-shadow-gold-glow:hover {
+    box-shadow: 0 25px 60px -15px oklch(0.72 0.13 75 / 0.22);
+    transform: translateY(-8px);
+  }
+  .vignette-overlay {
+    background: radial-gradient(circle, rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 100%);
+  }
+  .text-glow {
+    text-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
+  }
+  .nav-link-underline {
+    position: relative;
+  }
+  .nav-link-underline::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 1px;
+    bottom: -4px;
+    left: 0;
+    background-color: var(--gold);
+    transform-origin: bottom right;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+  .nav-link-underline:hover::after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+  }
   @keyframes fade-up { from { opacity: 0; transform: translateY(24px);} to { opacity:1; transform: none;} }
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes shimmer { 0%,100% { opacity:.4 } 50% { opacity:1 } }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.15; }
+    50% { transform: translateY(-20px) scale(1.1); opacity: 0.4; }
+  }
+  @keyframes typingPulse {
+    0%, 100% { transform: translateY(0); opacity: 0.4; }
+    50% { transform: translateY(-4px); opacity: 1; }
+  }
   .animate-fade-up { animation: fade-up 0.9s cubic-bezier(.2,.7,.2,1) both; }
   .animate-fade-in { animation: fade-in 1.2s ease both; }
   .animate-shimmer { animation: shimmer 1.4s ease-in-out infinite; }
+  .animate-float-slow { animation: float 12s ease-in-out infinite; }
+  .animate-float-medium { animation: float 8s ease-in-out infinite; }
+  .animate-float-fast { animation: float 5s ease-in-out infinite; }
+  .typing-dot { animation: typingPulse 1.2s infinite ease-in-out; }
 }
+

@@ -8,27 +8,30 @@ const reviews = [
 
 export function Testimonials() {
   return (
-    <section className="bg-cream px-5 py-24 md:px-10 md:py-32">
+    <section className="bg-cream/25 px-6 py-24 md:px-12 md:py-32">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-16 text-center">
-          <p className="mb-3 text-[10px] uppercase tracking-[0.35em] text-gold">— Patron Stories</p>
-          <h2 className="font-display text-4xl text-ink md:text-5xl">In their words</h2>
+        <div className="mb-16 text-center md:mb-24">
+          <p className="mb-3 text-[10px] md:text-xs uppercase tracking-[0.35em] text-gold font-semibold">— Patron Stories</p>
+          <h2 className="font-display text-4xl text-ink md:text-5xl tracking-wide">In Their Words</h2>
+          <div className="gold-divider mx-auto mt-6 w-24 opacity-60" />
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-3">
           {reviews.map((r) => (
             <figure
               key={r.name}
-              className="luxury-shadow flex flex-col gap-6 rounded-sm border border-border/60 bg-card p-8 md:p-10"
+              className="flex flex-col justify-between bg-white border border-gold/15 p-8 md:p-10 rounded-2xl transition-all duration-500 hover:shadow-[0_20px_45px_rgba(212,175,55,0.08)] hover:-translate-y-1.5"
             >
-              <Quote className="h-7 w-7 text-gold" />
-              <blockquote className="font-display text-lg leading-relaxed text-ink md:text-xl">
-                "{r.text}"
-              </blockquote>
-              <figcaption className="mt-auto">
-                <div className="gold-divider mb-4 w-12" />
-                <p className="text-sm font-medium text-ink">{r.name}</p>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{r.role}</p>
+              <div className="flex flex-col gap-6">
+                <Quote className="h-7 w-7 text-gold/80" />
+                <blockquote className="font-display text-lg leading-relaxed text-ink/90 font-light italic">
+                  "{r.text}"
+                </blockquote>
+              </div>
+              <figcaption className="mt-10">
+                <div className="gold-divider mb-4 w-12 opacity-55" />
+                <p className="text-sm font-semibold tracking-wide text-ink">{r.name}</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-1 font-medium">{r.role}</p>
               </figcaption>
             </figure>
           ))}
