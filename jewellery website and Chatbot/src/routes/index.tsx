@@ -10,7 +10,18 @@ import { Store } from "@/components/Store";
 import { Footer } from "@/components/Footer";
 import { ChatWidget, type ChatHandle } from "@/components/ChatWidget";
 
+import { getProductsFn } from "@/db/serverFunctions";
+
 export const Route = createFileRoute("/")({
+  loader: async () => {
+    try {
+      const dbProducts = await getProductsFn();
+      return { dbProducts };
+    } catch (e) {
+      console.warn("Failed to load products in route loader:", e);
+      return { dbProducts: [] };
+    }
+  },
   head: () => ({
     meta: [
       { title: "Aurum Vault — Luxury Gold & Diamond Jewellery, Hyderabad" },
@@ -27,6 +38,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const { dbProducts } = Route.useLoaderData();
   const chatRef = useRef<ChatHandle | null>(null);
   const openChat = () => chatRef.current?.open();
   const askAi = (name: string) => chatRef.current?.askAbout(name);
@@ -38,7 +50,7 @@ function Index() {
         <Hero onOpenChat={openChat} />
         <Collections />
         <section id="bridal">
-          <Products onAskAi={askAi} />
+          <Products products={dbProducts} onAskAi={askAi} />
         </section>
         <WhyUs />
         <Testimonials />

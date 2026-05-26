@@ -17,7 +17,35 @@ const products = [
   { name: "Aurelia Diamond Pendant", price: "₹ 48,500", cat: "Pendants", desc: "Cushion-cut central diamond framed in a halo of 18K rose gold.", img: p1 },
 ];
 
-export function Products({ onAskAi }: { onAskAi: (name: string) => void }) {
+export function Products({
+  products: dbProducts,
+  onAskAi,
+}: {
+  products?: { name: string; price: string; category: string; description: string; imageUrl: string }[];
+  onAskAi: (name: string) => void;
+}) {
+  const displayProducts =
+    dbProducts && dbProducts.length > 0
+      ? dbProducts.map((p) => {
+          let img = p.imageUrl;
+          if (p.imageUrl === "/src/assets/p1.jpg") img = p1;
+          else if (p.imageUrl === "/src/assets/p2.jpg") img = p2;
+          else if (p.imageUrl === "/src/assets/p3.jpg") img = p3;
+          else if (p.imageUrl === "/src/assets/p4.jpg") img = p4;
+          else if (p.imageUrl === "/src/assets/p5.jpg") img = p5;
+          else if (p.imageUrl === "/src/assets/p6.jpg") img = p6;
+          else if (p.imageUrl === "/src/assets/p7.jpg") img = p7;
+          else if (p.imageUrl === "/src/assets/p8.jpg") img = p8;
+          return {
+            name: p.name,
+            price: p.price,
+            cat: p.category,
+            desc: p.description,
+            img,
+          };
+        })
+      : products;
+
   return (
     <section id="products" className="bg-cream/40 px-6 py-24 md:px-12 md:py-32 border-y border-gold/10">
       <div className="mx-auto max-w-7xl">
@@ -28,7 +56,7 @@ export function Products({ onAskAi }: { onAskAi: (name: string) => void }) {
         </div>
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-16 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => (
+          {displayProducts.map((p) => (
             <article 
               key={p.name} 
               className="group flex flex-col bg-white border border-gold/10 rounded-2xl p-5 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(212,175,55,0.12)] hover:-translate-y-2"

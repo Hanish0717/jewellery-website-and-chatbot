@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X, Send, Sparkles } from "lucide-react";
+import { X, Send, Sparkles } from "lucide-react";
+import { chatFn, submitLeadFn } from "@/db/serverFunctions";
 
 type Msg = { role: "user" | "ai"; text: string };
 
@@ -9,32 +10,6 @@ const suggestions = [
   "Store location",
   "Wedding collections",
 ];
-
-const replies: Record<string, string> = {
-  bridal:
-    "We have a stunning curation of bridal sets between ₹1.4L – ₹1.95L — including the Maharani Haar and a temple-style polki choker. Would you like me to arrange a private viewing at our Jubilee Hills atelier?",
-  necklace:
-    "Within ₹1L, our Heritage 22K range and the Aurelia diamond pendants are most loved. Shall I share weight, purity and finishing details for any specific piece?",
-  store:
-    "Our flagship atelier is at Plot 14, Road 36, Jubilee Hills, Hyderabad — open daily 10:30 AM to 9:00 PM. Walk-ins welcome; appointments preferred for bridal consultations.",
-  wedding:
-    "Our Wedding Collection spans temple jewellery, polki chokers and full bridal sets. Would you like options in 22K gold, polki, or diamond — and a budget range to tailor my suggestions?",
-  default:
-    "I'd be delighted to help. Could you share whether you're exploring for an occasion, a budget range, or a specific style — bridal, daily wear, or diamond?",
-};
-
-function craftReply(q: string) {
-  const t = q.toLowerCase();
-  if (t.includes("bridal")) return replies.bridal;
-  if (t.includes("necklace") || t.includes("gold")) return replies.necklace;
-  if (t.includes("store") || t.includes("location") || t.includes("address")) return replies.store;
-  if (t.includes("wedding")) return replies.wedding;
-  if (t.includes("ask ai about") || t.includes("tell me about")) {
-    const name = q.replace(/ask ai about|tell me about/i, "").trim();
-    return `The ${name} is one of our signature pieces — handcrafted in our atelier with certified materials. I can share weight, purity, certification and pricing details, or schedule a private viewing. What would you prefer?`;
-  }
-  return replies.default;
-}
 
 export type ChatHandle = { open: () => void; askAbout: (name: string) => void };
 
@@ -51,6 +26,12 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
   const [typing, setTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Lead Form state
+  const [showLeadForm, setShowLeadForm] = useState(false);
+  const [leadName, setLeadName] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
+  const [submittingLead, setSubmittingLead] = useState(false);
+
   useEffect(() => {
     handleRef.current = {
       open: () => setOpen(true),
@@ -66,15 +47,73 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, typing, open]);
 
-  const send = (text: string) => {
+  const send = async (text: string) => {
     if (!text.trim()) return;
-    setMessages((m) => [...m, { role: "user", text }]);
+    
+    // Add user message immediately
+    const updatedMessages = [...messages, { role: "user" as const, text }];
+    setMessages(updatedMessages);
     setInput("");
     setTyping(true);
-    setTimeout(() => {
+
+    try {
+      // Map message history to server format
+      const chatHistory = updatedMessages.slice(0, -1).map((m) => ({
+        role: m.role,
+        text: m.text,
+      }));
+
+      // Call our TanStack Start server function
+      const res = await chatFn({ data: { message: text, history: chatHistory } });
+      
       setTyping(false);
-      setMessages((m) => [...m, { role: "ai", text: craftReply(text) }]);
-    }, 950 + Math.random() * 600);
+      setMessages((m) => [...m, { role: "ai" as const, text: res.text }]);
+      
+      if (res.triggerLeadCapture) {
+        setShowLeadForm(true);
+      }
+    } catch (err) {
+      console.error("Error communicating with chat backend:", err);
+      setTyping(false);
+      setMessages((m) => [
+        ...m,
+        {
+          role: "ai" as const,
+          text: "I apologize, but I am having trouble connecting to my catalogue database right now. Would you like to try again shortly, or visit our Jubilee Hills atelier?",
+        },
+      ]);
+    }
+  };
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leadName.trim() || !leadPhone.trim()) return;
+    setSubmittingLead(true);
+    
+    try {
+      await submitLeadFn({ data: { name: leadName, phone: leadPhone } });
+      setMessages((m) => [
+        ...m,
+        {
+          role: "ai" as const,
+          text: `Thank you, ${leadName}! I have registered your request. Our boutique manager at Jubilee Hills will contact you at ${leadPhone} shortly to arrange your consultation.`,
+        },
+      ]);
+      setShowLeadForm(false);
+      setLeadName("");
+      setLeadPhone("");
+    } catch (err) {
+      console.error("Error submitting lead:", err);
+      setMessages((m) => [
+        ...m,
+        {
+          role: "ai" as const,
+          text: "I had trouble saving your contact information. Please share it again, or reach us at plot 14, Jubilee Hills.",
+        },
+      ]);
+    } finally {
+      setSubmittingLead(false);
+    }
   };
 
   return (
@@ -144,7 +183,7 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
                 className={`flex animate-fade-up ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4.5 py-3 text-xs md:text-sm leading-relaxed tracking-wide font-light ${
+                  className={`max-w-[85%] rounded-2xl px-4.5 py-3 text-xs md:text-sm leading-relaxed tracking-wide font-light whitespace-pre-wrap ${
                     m.role === "user"
                       ? "rounded-br-sm bg-ink text-gold border border-gold/20 shadow-md"
                       : "rounded-bl-sm border border-gold/15 bg-white text-ink shadow-sm"
@@ -172,7 +211,7 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
           </div>
 
           {/* Suggestions block */}
-          {messages.length <= 2 && (
+          {messages.length <= 2 && !showLeadForm && (
             <div className="flex flex-wrap gap-2 border-t border-gold/10 bg-cream/20 px-5 py-4">
               {suggestions.map((s) => (
                 <button
@@ -186,28 +225,71 @@ export function ChatWidget({ handleRef }: { handleRef: React.MutableRefObject<Ch
             </div>
           )}
 
-          {/* Chat Form input */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
-            }}
-            className="flex items-center gap-3 border-t border-gold/10 bg-white px-5 py-4"
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about a piece, budget or occasion…"
-              className="flex-1 rounded-full bg-cream/40 border border-gold/10 px-5 py-3 text-xs md:text-sm text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
-            />
-            <button
-              type="submit"
-              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-ink text-gold border border-gold/20 shadow-md transition-all duration-300 hover:bg-gold hover:text-ink hover:border-gold active:scale-90"
-              aria-label="Send message"
+          {/* input or lead form */}
+          {showLeadForm ? (
+            <form
+              onSubmit={handleLeadSubmit}
+              className="flex flex-col gap-3 border-t border-gold/10 bg-white px-5 py-5 animate-fade-up"
             >
-              <Send className="h-4.5 w-4.5" />
-            </button>
-          </form>
+              <div className="flex justify-between items-center">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gold">Arrange Private Viewing / Callback</p>
+                <button 
+                  type="button" 
+                  onClick={() => setShowLeadForm(false)} 
+                  className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-ink cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+              <input
+                required
+                value={leadName}
+                onChange={(e) => setLeadName(e.target.value)}
+                placeholder="Enter Your Name"
+                className="rounded-lg bg-cream/40 border border-gold/10 px-4 py-2.5 text-xs md:text-sm text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+              />
+              <div className="flex gap-2">
+                <input
+                  required
+                  type="tel"
+                  value={leadPhone}
+                  onChange={(e) => setLeadPhone(e.target.value)}
+                  placeholder="Enter Phone Number"
+                  className="flex-1 rounded-lg bg-cream/40 border border-gold/10 px-4 py-2.5 text-xs md:text-sm text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                />
+                <button
+                  type="submit"
+                  disabled={submittingLead}
+                  className="rounded-lg bg-ink px-4.5 py-2.5 text-[10px] uppercase tracking-[0.18em] text-gold border border-gold/20 shadow-md transition-all duration-300 hover:bg-gold hover:text-ink hover:border-gold disabled:opacity-50 cursor-pointer active:scale-95"
+                >
+                  {submittingLead ? "Saving..." : "Submit"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* Chat Form input */
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                send(input);
+              }}
+              className="flex items-center gap-3 border-t border-gold/10 bg-white px-5 py-4"
+            >
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about a piece, budget or occasion…"
+                className="flex-1 rounded-full bg-cream/40 border border-gold/10 px-5 py-3 text-xs md:text-sm text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+              />
+              <button
+                type="submit"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-ink text-gold border border-gold/20 shadow-md transition-all duration-300 hover:bg-gold hover:text-ink hover:border-gold active:scale-90"
+                aria-label="Send message"
+              >
+                <Send className="h-4.5 w-4.5" />
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </>
