@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, Send, Sparkles, User, Calendar, Phone, Check } from "lucide-react";
 import productsData from "@/data/products.json";
 import faqsData from "@/data/faqs.json";
-import { chatFn, submitLeadFn } from "@/db/serverFunctions";
+import { chatFn, submitLeadFn, subscribePriceAlertFn, loginClientFn } from "@/db/serverFunctions";
 
 interface Product {
   id: string;
@@ -171,9 +171,56 @@ export function ChatWidget({
   // Lead Form States (Conversational Inline)
   const [leadName, setLeadName] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
-  const [formStep, setFormStep] = useState(1); // 1: Name, 2: Phone, 3: Completed
-  const [formErrors, setFormErrors] = useState<{ name?: string; phone?: string }>({});
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadTelegram, setLeadTelegram] = useState("");
+  const [formStep, setFormStep] = useState(1); // 1: Tabbed Form, 2: Completed
+  const [formErrors, setFormErrors] = useState<{ name?: string; phone?: string; email?: string; telegram?: string }>({});
   const [submittingLead, setSubmittingLead] = useState(false);
+  const [lastProductAsked, setLastProductAsked] = useState<string | null>(null);
+
+  // Authentication States
+  const [clientUser, setClientUser] = useState<{ name: string; phone: string; email?: string; telegram?: string } | null>(null);
+  const [chatAuthTab, setChatAuthTab] = useState<"login" | "register">("login");
+  const [chatLoginEmail, setChatLoginEmail] = useState("");
+  const [chatSelectedChannels, setChatSelectedChannels] = useState<{ whatsapp: boolean; email: boolean; telegram: boolean }>({
+    whatsapp: true,
+    email: false,
+    telegram: false,
+  });
+
+  useEffect(() => {
+    const checkUser = () => {
+      const stored = localStorage.getItem("atelier_client_user");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setClientUser(parsed);
+          setLeadName(parsed.name || "");
+          setLeadPhone(parsed.phone || "");
+          setLeadEmail(parsed.email || "");
+          setLeadTelegram(parsed.telegram || "");
+          setChatSelectedChannels({
+            whatsapp: true,
+            email: !!parsed.email,
+            telegram: !!parsed.telegram,
+          });
+        } catch {
+          setClientUser(null);
+        }
+      } else {
+        setClientUser(null);
+      }
+    };
+    checkUser();
+
+    window.addEventListener("storage", checkUser);
+    window.addEventListener("client-auth-change", checkUser);
+
+    return () => {
+      window.removeEventListener("storage", checkUser);
+      window.removeEventListener("client-auth-change", checkUser);
+    };
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -182,6 +229,7 @@ export function ChatWidget({
       open: () => setOpen(true),
       askAbout: (name) => {
         setOpen(true);
+        setLastProductAsked(name);
         send(`Tell me about the ${name}`);
       },
     };
@@ -193,6 +241,14 @@ export function ChatWidget({
 
   const send = async (text: string) => {
     if (!text.trim()) return;
+
+    // Try to auto-detect product interest
+    const matched = findProductMatch(text);
+    let currentLastProduct = lastProductAsked;
+    if (matched) {
+      setLastProductAsked(matched.name);
+      currentLastProduct = matched.name;
+    }
 
     // Add user message
     const userMsg: Msg = {
@@ -224,21 +280,82 @@ export function ChatWidget({
         timestamp: new Date(),
       };
 
-      if (res.triggerLeadCapture) {
-        setLeadName("");
-        setLeadPhone("");
-        setFormStep(1);
-        setFormErrors({});
+      const hasFormAlready = messages.some((m) => m.isForm);
+      const shouldTrigger = res.triggerLeadCapture || (formStep === 1 && !hasFormAlready);
 
-        const formMsg: Msg = {
-          id: "lead-form-" + Date.now(),
-          role: "system",
-          text: "Concierge Registration Details",
-          isForm: true,
-          formType: "lead",
-          timestamp: new Date(),
-        };
-        setMessages((m) => [...m, aiMsg, formMsg]);
+      if (shouldTrigger) {
+        if (clientUser) {
+          // Logged in: auto-register and skip form
+          try {
+            await submitLeadFn({
+              data: {
+                name: clientUser.name,
+                phone: clientUser.phone,
+                email: clientUser.email || undefined,
+                telegram: clientUser.telegram || undefined,
+              },
+            });
+            let alertInfo = "";
+            if (currentLastProduct) {
+              const pMatch = (productsData as Product[]).find(
+                (p) => p.name.toLowerCase() === currentLastProduct!.toLowerCase()
+              );
+              if (pMatch) {
+                const numericId = parseInt(pMatch.id) || 1;
+                const channels = ["whatsapp"];
+                if (clientUser.email) channels.push("email");
+                if (clientUser.telegram) channels.push("telegram");
+                await subscribePriceAlertFn({
+                  data: {
+                    name: clientUser.name,
+                    phone: clientUser.phone,
+                    email: clientUser.email || undefined,
+                    telegram: clientUser.telegram || undefined,
+                    deliveryChannel: channels.join(","),
+                    productId: numericId,
+                    productName: pMatch.name,
+                  },
+                });
+                alertInfo = ` and activated automated 🔔 alerts for **${pMatch.name}** on your profile`;
+              }
+            }
+            const loggedInConfirmationMsg: Msg = {
+              id: Math.random().toString(36).substring(7),
+              role: "ai",
+              text: `Thank you, ${clientUser.name}! I have successfully registered your interest${alertInfo}. Our showroom concierge will contact you at ${clientUser.phone} shortly! ✨`,
+              timestamp: new Date(),
+            };
+            setMessages((m) => [...m, aiMsg, loggedInConfirmationMsg]);
+            setLastProductAsked(null);
+          } catch (err) {
+            console.error("Error auto-submitting lead/alert:", err);
+            const loggedInConfirmationMsg: Msg = {
+              id: Math.random().toString(36).substring(7),
+              role: "ai",
+              text: `Thank you, ${clientUser.name}! I have saved your interest request. Our concierge will contact you at ${clientUser.phone} shortly. ✨`,
+              timestamp: new Date(),
+            };
+            setMessages((m) => [...m, aiMsg, loggedInConfirmationMsg]);
+          }
+        } else {
+          // Not logged in: show the tabbed auth form bubble
+          setLeadName("");
+          setLeadPhone("");
+          setLeadEmail("");
+          setLeadTelegram("");
+          setFormStep(1);
+          setFormErrors({});
+
+          const formMsg: Msg = {
+            id: "lead-form-" + Date.now(),
+            role: "system",
+            text: "Concierge Registration Details",
+            isForm: true,
+            formType: "lead",
+            timestamp: new Date(),
+          };
+          setMessages((m) => [...m, aiMsg, formMsg]);
+        }
       } else {
         setMessages((m) => [...m, aiMsg]);
       }
@@ -246,7 +363,7 @@ export function ChatWidget({
       console.warn("Error communicating with chat backend. Falling back to local RAG.", err);
       // Fallback response using local RAG simulated logic
       setTimeout(
-        () => {
+        async () => {
           setTyping(false);
           const reply = craftDynamicReply(text);
 
@@ -257,21 +374,81 @@ export function ChatWidget({
             timestamp: new Date(),
           };
 
-          if (reply.triggerLead) {
-            setLeadName("");
-            setLeadPhone("");
-            setFormStep(1);
-            setFormErrors({});
+          const hasFormAlready = messages.some((m) => m.isForm);
+          const shouldTrigger = reply.triggerLead || (formStep === 1 && !hasFormAlready);
 
-            const formMsg: Msg = {
-              id: "lead-form-" + Date.now(),
-              role: "system",
-              text: "Concierge Registration Details",
-              isForm: true,
-              formType: "lead",
-              timestamp: new Date(),
-            };
-            setMessages((m) => [...m, aiMsg, formMsg]);
+          if (shouldTrigger) {
+            if (clientUser) {
+              // Logged in: auto-register and skip form
+              try {
+                await submitLeadFn({
+                  data: {
+                    name: clientUser.name,
+                    phone: clientUser.phone,
+                    email: clientUser.email || undefined,
+                    telegram: clientUser.telegram || undefined,
+                  },
+                });
+                let alertInfo = "";
+                if (currentLastProduct) {
+                  const pMatch = (productsData as Product[]).find(
+                    (p) => p.name.toLowerCase() === currentLastProduct!.toLowerCase()
+                  );
+                  if (pMatch) {
+                    const numericId = parseInt(pMatch.id) || 1;
+                    const channels = ["whatsapp"];
+                    if (clientUser.email) channels.push("email");
+                    if (clientUser.telegram) channels.push("telegram");
+                    await subscribePriceAlertFn({
+                      data: {
+                        name: clientUser.name,
+                        phone: clientUser.phone,
+                        email: clientUser.email || undefined,
+                        telegram: clientUser.telegram || undefined,
+                        deliveryChannel: channels.join(","),
+                        productId: numericId,
+                        productName: pMatch.name,
+                      },
+                    });
+                    alertInfo = ` and activated automated 🔔 alerts for **${pMatch.name}** on your profile`;
+                  }
+                }
+                const loggedInConfirmationMsg: Msg = {
+                  id: Math.random().toString(36).substring(7),
+                  role: "ai",
+                  text: `Thank you, ${clientUser.name}! I have successfully registered your interest${alertInfo}. Our showroom concierge will contact you at ${clientUser.phone} shortly! ✨`,
+                  timestamp: new Date(),
+                };
+                setMessages((m) => [...m, aiMsg, loggedInConfirmationMsg]);
+                setLastProductAsked(null);
+              } catch (subErr) {
+                console.error("Error auto-submitting lead/alert (fallback path):", subErr);
+                const loggedInConfirmationMsg: Msg = {
+                  id: Math.random().toString(36).substring(7),
+                  role: "ai",
+                  text: `Thank you, ${clientUser.name}! I have saved your interest request. Our concierge will contact you at ${clientUser.phone} shortly. ✨`,
+                  timestamp: new Date(),
+                };
+                setMessages((m) => [...m, aiMsg, loggedInConfirmationMsg]);
+              }
+            } else {
+              setLeadName("");
+              setLeadPhone("");
+              setLeadEmail("");
+              setLeadTelegram("");
+              setFormStep(1);
+              setFormErrors({});
+
+              const formMsg: Msg = {
+                id: "lead-form-" + Date.now(),
+                role: "system",
+                text: "Concierge Registration Details",
+                isForm: true,
+                formType: "lead",
+                timestamp: new Date(),
+              };
+              setMessages((m) => [...m, aiMsg, formMsg]);
+            }
           } else {
             setMessages((m) => [...m, aiMsg]);
           }
@@ -281,59 +458,185 @@ export function ChatWidget({
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleChatAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formStep === 1) {
+    setFormErrors({});
+
+    let activeUser = clientUser;
+    let name = leadName;
+    let phone = leadPhone;
+    let email = leadEmail;
+    let telegram = leadTelegram;
+
+    if (chatAuthTab === "login") {
+      if (!chatLoginEmail.trim()) {
+        setFormErrors({ email: "Please enter your email" });
+        return;
+      }
+      setSubmittingLead(true);
+      try {
+        const res = await loginClientFn({ data: { email: chatLoginEmail } });
+        if (res.success && res.client) {
+          const user = {
+            name: res.client.name,
+            phone: res.client.phone,
+            email: res.client.email || undefined,
+            telegram: res.client.telegram || undefined,
+          };
+          localStorage.setItem("atelier_client_user", JSON.stringify(user));
+          window.dispatchEvent(new Event("client-auth-change"));
+          setClientUser(user);
+          activeUser = user;
+          name = user.name;
+          phone = user.phone;
+          email = user.email || "";
+          telegram = user.telegram || "";
+          setChatSelectedChannels({
+            whatsapp: true,
+            email: !!user.email,
+            telegram: !!user.telegram,
+          });
+        } else {
+          setFormErrors({ email: res.message || "Account not found" });
+          setSubmittingLead(false);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Chat login error:", err);
+        setFormErrors({ email: err.message || "Login failed" });
+        setSubmittingLead(false);
+        return;
+      }
+    } else {
+      // Registration flow
       if (!leadName.trim()) {
         setFormErrors({ name: "Please enter your name" });
         return;
       }
-      setFormErrors({});
-      setFormStep(2);
-    } else if (formStep === 2) {
-      const phoneRegex = /^[6-9]\d{9}$/;
       if (!leadPhone.trim()) {
         setFormErrors({ phone: "Please enter your phone number" });
         return;
       }
+      const phoneRegex = /^[6-9]\d{9}$/;
       if (!phoneRegex.test(leadPhone.replace(/\s+/g, ""))) {
-        setFormErrors({ phone: "Please enter a valid 10-digit phone number" });
+        setFormErrors({ phone: "Please enter a valid 10-digit number" });
         return;
       }
-      setFormErrors({});
-      setSubmittingLead(true);
+      if (!leadEmail.trim()) {
+        setFormErrors({ email: "Email is required to log in later" });
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(leadEmail.trim())) {
+        setFormErrors({ email: "Please enter a valid email address" });
+        return;
+      }
+      if (chatSelectedChannels.telegram && !leadTelegram.trim()) {
+        setFormErrors({ telegram: "Please enter your Telegram Chat ID" });
+        return;
+      }
+      if (chatSelectedChannels.telegram && leadTelegram.trim()) {
+        const tgRegex = /^-?\d+$/;
+        if (!tgRegex.test(leadTelegram.trim())) {
+          setFormErrors({ telegram: "Numeric Chat ID is required" });
+          return;
+        }
+      }
 
-      // Call database server function to store lead
-      submitLeadFn({ data: { name: leadName, phone: leadPhone } })
-        .then(() => {
-          setFormStep(3);
-          setTimeout(() => {
-            const successMsg: Msg = {
-              id: Math.random().toString(36).substring(7),
-              role: "ai",
-              text: `Thank you, ${leadName}. I have successfully registered your request. Our concierge will contact you at ${leadPhone} within 24 hours to schedule your private consultation at our Palakonda showroom. ✨`,
-              timestamp: new Date(),
-            };
-            setMessages((m) => [...m, successMsg]);
-          }, 500);
-        })
-        .catch((err) => {
-          console.error("Error saving lead to database:", err);
-          // Fallback to local success even if database is offline for seamless UX
-          setFormStep(3);
-          setTimeout(() => {
-            const successMsg: Msg = {
-              id: Math.random().toString(36).substring(7),
-              role: "ai",
-              text: `Thank you, ${leadName}. I have registered your request. Our showroom concierge will contact you at ${leadPhone} shortly to schedule your private consultation. ✨`,
-              timestamp: new Date(),
-            };
-            setMessages((m) => [...m, successMsg]);
-          }, 500);
-        })
-        .finally(() => {
-          setSubmittingLead(false);
+      setSubmittingLead(true);
+      try {
+        await submitLeadFn({
+          data: {
+            name: leadName,
+            phone: leadPhone,
+            email: leadEmail.trim(),
+            telegram: leadTelegram.trim() || undefined,
+          },
         });
+
+        const user = {
+          name: leadName,
+          phone: leadPhone,
+          email: leadEmail.trim(),
+          telegram: leadTelegram.trim() || undefined,
+        };
+        localStorage.setItem("atelier_client_user", JSON.stringify(user));
+        window.dispatchEvent(new Event("client-auth-change"));
+        setClientUser(user);
+        activeUser = user;
+        name = leadName;
+        phone = leadPhone;
+        email = leadEmail;
+        telegram = leadTelegram;
+      } catch (err: any) {
+        console.error("Chat registration error:", err);
+        setFormErrors({ name: err.message || "Failed to register" });
+        setSubmittingLead(false);
+        return;
+      }
+    }
+
+    // Subscribe to price drop alert if a product is asked about
+    const channels = Object.entries(chatSelectedChannels)
+      .filter(([_, enabled]) => enabled)
+      .map(([channel]) => channel);
+
+    const deliveryChannel = channels.length > 0 ? channels.join(",") : "whatsapp";
+
+    try {
+      let alertAddedInfo = "";
+      if (lastProductAsked) {
+        const match = (productsData as Product[]).find(
+          (p) => p.name.toLowerCase() === lastProductAsked.toLowerCase()
+        );
+        if (match) {
+          const numericId = parseInt(match.id) || 1;
+          await subscribePriceAlertFn({
+            data: {
+              name,
+              phone,
+              email: email.trim() || undefined,
+              telegram: telegram.trim() || undefined,
+              deliveryChannel,
+              productId: numericId,
+              productName: match.name,
+            },
+          });
+          const listArr = [];
+          if (channels.includes("whatsapp")) listArr.push("WhatsApp");
+          if (channels.includes("email")) listArr.push("Email");
+          if (channels.includes("telegram")) listArr.push("Telegram");
+          alertAddedInfo = ` I have also activated automated 🔔 price drop and offer alerts for the **${match.name}** via ${listArr.join(", ")} for you!`;
+        }
+      }
+
+      setFormStep(2); // Success state
+
+      setTimeout(() => {
+        const successMsg: Msg = {
+          id: Math.random().toString(36).substring(7),
+          role: "ai",
+          text: `Thank you, ${name}. I have successfully registered your request. Our concierge will contact you at ${phone} within 24 hours to schedule your private consultation. ✨${alertAddedInfo}`,
+          timestamp: new Date(),
+        };
+        setMessages((m) => [...m, successMsg]);
+        setLastProductAsked(null);
+      }, 500);
+    } catch (subErr) {
+      console.warn("Could not register alerts on auth completion:", subErr);
+      setFormStep(2); // Success state
+      setTimeout(() => {
+        const successMsg: Msg = {
+          id: Math.random().toString(36).substring(7),
+          role: "ai",
+          text: `Thank you, ${name}. I have registered your request. Our showroom concierge will contact you shortly at ${phone}. ✨`,
+          timestamp: new Date(),
+        };
+        setMessages((m) => [...m, successMsg]);
+        setLastProductAsked(null);
+      }, 500);
+    } finally {
+      setSubmittingLead(false);
     }
   };
 
@@ -417,75 +720,198 @@ export function ChatWidget({
                       </div>
 
                       {formStep === 1 && (
-                        <form onSubmit={handleFormSubmit} className="space-y-3">
-                          <p className="text-xs text-muted-foreground font-light leading-relaxed">
-                            To coordinate your reservation details, may we have your name?
-                          </p>
-                          <input
-                            type="text"
-                            value={leadName}
-                            onChange={(e) => setLeadName(e.target.value)}
-                            placeholder="Your Full Name"
-                            aria-label="Full Name"
-                            className="w-full rounded-lg bg-cream/40 border border-gold/10 px-4 py-2.5 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
-                            autoFocus
-                          />
-                          {formErrors.name && (
-                            <p className="text-[10px] text-destructive font-medium">
-                              {formErrors.name}
-                            </p>
+                        <form onSubmit={handleChatAuthSubmit} className="space-y-3.5">
+                          {/* Tabs for Login / Register */}
+                          <div className="grid grid-cols-2 gap-2 border-b border-gold/10 pb-2">
+                            <button
+                              type="button"
+                              onClick={() => setChatAuthTab("login")}
+                              className={`py-1.5 text-[10px] uppercase tracking-wider font-semibold border-b-2 transition-all cursor-pointer ${
+                                chatAuthTab === "login" ? "border-gold text-gold" : "border-transparent text-muted-foreground"
+                              }`}
+                            >
+                              Login with Email
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setChatAuthTab("register")}
+                              className={`py-1.5 text-[10px] uppercase tracking-wider font-semibold border-b-2 transition-all cursor-pointer ${
+                                chatAuthTab === "register" ? "border-gold text-gold" : "border-transparent text-muted-foreground"
+                              }`}
+                            >
+                              New Registration
+                            </button>
+                          </div>
+
+                          {/* Login Tab Content */}
+                          {chatAuthTab === "login" && (
+                            <div className="space-y-3 animate-fade-in">
+                              <p className="text-[11px] text-muted-foreground font-light leading-relaxed">
+                                Enter the email you used during registration to quickly retrieve your profile.
+                              </p>
+                              <div>
+                                <label className="block text-[9px] uppercase tracking-wider text-ink font-semibold mb-1">
+                                  Your Email Address
+                                </label>
+                                <input
+                                  type="email"
+                                  required
+                                  value={chatLoginEmail}
+                                  onChange={(e) => setChatLoginEmail(e.target.value)}
+                                  placeholder="name@domain.com"
+                                  className="w-full rounded-lg bg-cream/40 border border-gold/10 px-3.5 py-2 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                                />
+                              </div>
+                              {formErrors.email && (
+                                <p className="text-[10px] text-rose-500 font-medium animate-pulse">
+                                  {formErrors.email}
+                                </p>
+                              )}
+                            </div>
                           )}
+
+                          {/* Register Tab Content */}
+                          {chatAuthTab === "register" && (
+                            <div className="space-y-3 animate-fade-in">
+                              <p className="text-[11px] text-muted-foreground font-light leading-relaxed">
+                                Register to schedule viewings in one-click and get live price alerts.
+                              </p>
+                              
+                              <div>
+                                <label className="block text-[9px] uppercase tracking-wider text-ink font-semibold mb-1">
+                                  Your Full Name
+                                </label>
+                                <div className="relative">
+                                  <User className="absolute left-3 top-2 h-3.5 w-3.5 text-gold/60" />
+                                  <input
+                                    type="text"
+                                    required
+                                    value={leadName}
+                                    onChange={(e) => setLeadName(e.target.value)}
+                                    placeholder="Rajesh Kumar"
+                                    className="w-full rounded-lg bg-cream/40 border border-gold/10 pl-9 pr-3.5 py-2 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                                  />
+                                </div>
+                                {formErrors.name && (
+                                  <p className="text-[10px] text-rose-500 font-medium mt-1">
+                                    {formErrors.name}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] uppercase tracking-wider text-ink font-semibold mb-1">
+                                  Mobile Number
+                                </label>
+                                <div className="relative">
+                                  <Phone className="absolute left-3 top-2 h-3.5 w-3.5 text-gold/60" />
+                                  <input
+                                    type="tel"
+                                    required
+                                    value={leadPhone}
+                                    onChange={(e) => setLeadPhone(e.target.value)}
+                                    placeholder="10-Digit Mobile Number"
+                                    className="w-full rounded-lg bg-cream/40 border border-gold/10 pl-9 pr-3.5 py-2 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                                  />
+                                </div>
+                                {formErrors.phone && (
+                                  <p className="text-[10px] text-rose-500 font-medium mt-1">
+                                    {formErrors.phone}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] uppercase tracking-wider text-ink font-semibold mb-1">
+                                  Email Address
+                                </label>
+                                <input
+                                  type="email"
+                                  required
+                                  value={leadEmail}
+                                  onChange={(e) => setLeadEmail(e.target.value)}
+                                  placeholder="name@domain.com"
+                                  className="w-full rounded-lg bg-cream/40 border border-gold/10 px-3.5 py-2 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                                />
+                                {formErrors.email && (
+                                  <p className="text-[10px] text-rose-500 font-medium mt-1">
+                                    {formErrors.email}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Channels & Optional Telegram input */}
+                              <div className="space-y-2 p-2.5 bg-cream/30 border border-gold/10 rounded-xl">
+                                <label className="block text-[9px] uppercase tracking-wider text-ink font-semibold">
+                                  Send Alerts Via
+                                </label>
+                                <div className="flex flex-wrap gap-3 mt-1">
+                                  <label className="flex items-center gap-1.5 text-[11px] text-ink cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={chatSelectedChannels.whatsapp}
+                                      onChange={(e) => setChatSelectedChannels(prev => ({ ...prev, whatsapp: e.target.checked }))}
+                                      className="h-3.5 w-3.5 rounded border-gold/25 text-gold focus:ring-0 cursor-pointer"
+                                    />
+                                    <span>WhatsApp</span>
+                                  </label>
+                                  <label className="flex items-center gap-1.5 text-[11px] text-ink cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={chatSelectedChannels.email}
+                                      onChange={(e) => setChatSelectedChannels(prev => ({ ...prev, email: e.target.checked }))}
+                                      className="h-3.5 w-3.5 rounded border-gold/25 text-gold focus:ring-0 cursor-pointer"
+                                    />
+                                    <span>Email</span>
+                                  </label>
+                                  <label className="flex items-center gap-1.5 text-[11px] text-ink cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={chatSelectedChannels.telegram}
+                                      onChange={(e) => setChatSelectedChannels(prev => ({ ...prev, telegram: e.target.checked }))}
+                                      className="h-3.5 w-3.5 rounded border-gold/25 text-gold focus:ring-0 cursor-pointer"
+                                    />
+                                    <span>Telegram</span>
+                                  </label>
+                                </div>
+                              </div>
+
+                              {chatSelectedChannels.telegram && (
+                                <div className="animate-fade-in space-y-1">
+                                  <label className="block text-[9px] uppercase tracking-wider text-ink font-semibold mb-1">
+                                    Telegram Chat ID (Optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={leadTelegram}
+                                    onChange={(e) => setLeadTelegram(e.target.value)}
+                                    placeholder="E.g., 7064087532"
+                                    className="w-full rounded-lg bg-cream/40 border border-gold/10 px-3.5 py-2 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                                  />
+                                  {formErrors.telegram && (
+                                    <p className="text-[10px] text-rose-500 font-medium">
+                                      {formErrors.telegram}
+                                    </p>
+                                  )}
+                                  <p className="text-[9px] text-muted-foreground font-light leading-normal bg-gold/5 p-2 rounded border border-gold/15">
+                                    💡 Search and send a message to <b>@userinfobot</b> or <b>@GetIDsBot</b> on Telegram to instantly get your numeric Chat ID.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           <button
                             type="submit"
-                            className="w-full rounded-full bg-ink py-2 text-[9px] uppercase tracking-[0.2em] text-gold font-semibold transition-all duration-300 hover:bg-gold hover:text-ink cursor-pointer"
+                            disabled={submittingLead}
+                            className="w-full rounded-full bg-ink py-2.5 text-[9px] uppercase tracking-[0.2em] text-gold font-semibold transition-all duration-300 hover:bg-gold hover:text-ink disabled:opacity-50 cursor-pointer"
                           >
-                            Next Step
+                            {submittingLead ? "Processing..." : chatAuthTab === "login" ? "Login & Confirm Booking" : "Register & Confirm Booking"}
                           </button>
                         </form>
                       )}
 
                       {formStep === 2 && (
-                        <form onSubmit={handleFormSubmit} className="space-y-3">
-                          <div className="flex items-center justify-between border-b border-gold/5 pb-2 mb-2">
-                            <span className="text-xs font-medium text-ink">Guest: {leadName}</span>
-                            <button
-                              type="button"
-                              onClick={() => setFormStep(1)}
-                              className="text-[9px] uppercase tracking-wider text-gold hover:text-ink/80 transition-colors cursor-pointer"
-                            >
-                              Edit
-                            </button>
-                          </div>
-                          <p className="text-xs text-muted-foreground font-light leading-relaxed">
-                            Please provide a phone number for booking validation.
-                          </p>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gold/60" />
-                            <input
-                              type="tel"
-                              value={leadPhone}
-                              onChange={(e) => setLeadPhone(e.target.value)}
-                              placeholder="10-Digit Mobile Number"
-                              aria-label="Mobile Number"
-                              className="w-full rounded-lg bg-cream/40 border border-gold/10 pl-9 pr-4 py-2.5 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
-                              autoFocus
-                            />
-                          </div>
-                          {formErrors.phone && (
-                            <p className="text-[10px] text-destructive font-medium">
-                              {formErrors.phone}
-                            </p>
-                          )}
-                          <button
-                            type="submit"
-                            className="w-full rounded-full bg-ink py-2 text-[9px] uppercase tracking-[0.2em] text-gold font-semibold transition-all duration-300 hover:bg-gold hover:text-ink cursor-pointer"
-                          >
-                            Request Consultation
-                          </button>
-                        </form>
-                      )}
-
-                      {formStep === 3 && (
                         <div className="flex flex-col items-center text-center py-2 animate-fade-in">
                           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 border border-emerald-200 mb-3 animate-shimmer">
                             <Check className="h-5 w-5" />

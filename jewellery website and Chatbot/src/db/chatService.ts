@@ -12,6 +12,39 @@ if (apiKey && apiKey !== "your_groq_api_key_here") {
   console.log("No GROQ_API_KEY found or placeholder detected in chatService.ts.");
 }
 
+// Fetch embeddings using Google's gemini-embedding-2 model (output dimension configured to 768)
+export async function getEmbedding(text: string): Promise<number[] | null> {
+  let geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    geminiKey = geminiKey.trim();
+  }
+  if (!geminiKey || geminiKey === "your_gemini_api_key_here") {
+    return null;
+  }
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${geminiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "models/gemini-embedding-2",
+        content: { parts: [{ text }] },
+        outputDimensionality: 768
+      })
+    });
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => "");
+      throw new Error(`Google Embeddings API status ${response.status}: ${errBody}`);
+    }
+    const data = await response.json();
+    return data.embedding.values;
+  } catch (err) {
+    console.warn("[getEmbedding] Failed to fetch semantic embedding:", err);
+    return null;
+  }
+}
+
+
 // Product search with smart keyword parsing and budget limits
 export async function searchProducts(queryText: string) {
   const query = queryText.toLowerCase();
@@ -40,7 +73,51 @@ export async function searchProducts(queryText: string) {
     }
   }
 
-  // 3. Perform database query
+  // 3. Try Semantic Vector search first (RAG)
+  const queryEmbedding = await getEmbedding(queryText);
+  if (queryEmbedding) {
+    try {
+      const embeddingString = `[${queryEmbedding.join(",")}]`;
+      let conditions = [];
+
+      if (budgetLimit !== null) {
+        conditions.push(lte(products.priceVal, budgetLimit));
+      }
+      if (categoryFilter) {
+        conditions.push(sql`${products.category} ILIKE ${`%${categoryFilter}%`}`);
+      }
+
+      let qBuilder = db
+        .select({
+          id: products.id,
+          name: products.name,
+          price: products.price,
+          priceVal: products.priceVal,
+          category: products.category,
+          description: products.description,
+          imageUrl: products.imageUrl,
+          similarity: sql<number>`${products.embedding} <=> ${embeddingString}::vector`
+        })
+        .from(products);
+
+      if (conditions.length > 0) {
+        qBuilder = qBuilder.where(and(...conditions)) as typeof qBuilder;
+      }
+
+      const matchingProducts = await qBuilder
+        .orderBy(sql`${products.embedding} <=> ${embeddingString}::vector`)
+        .limit(4);
+
+      if (matchingProducts.length > 0) {
+        console.log(`[searchProducts] Semantic vector search returned ${matchingProducts.length} results.`);
+        return matchingProducts;
+      }
+    } catch (vectorErr) {
+      console.warn("[searchProducts] Vector query failed, falling back to SQL keyword search:", vectorErr);
+    }
+  }
+
+  // 4. Fallback to SQL keyword search
   try {
     let conditions = [];
 
@@ -136,10 +213,36 @@ export async function searchProducts(queryText: string) {
   }
 }
 
+
 // FAQ search matching keywords in PostgreSQL
 export async function searchFAQs(queryText: string) {
   const query = queryText.toLowerCase();
   
+  // Try Semantic Vector search first (RAG)
+  const queryEmbedding = await getEmbedding(queryText);
+  if (queryEmbedding) {
+    try {
+      const embeddingString = `[${queryEmbedding.join(",")}]`;
+      const matchingFAQs = await db
+        .select({
+          id: faqs.id,
+          question: faqs.question,
+          answer: faqs.answer,
+          category: faqs.category,
+        })
+        .from(faqs)
+        .orderBy(sql`${faqs.embedding} <=> ${embeddingString}::vector`)
+        .limit(3);
+
+      if (matchingFAQs.length > 0) {
+        console.log(`[searchFAQs] Semantic vector search returned ${matchingFAQs.length} FAQs.`);
+        return matchingFAQs;
+      }
+    } catch (vectorErr) {
+      console.warn("[searchFAQs] Vector FAQ query failed, falling back to keyword search:", vectorErr);
+    }
+  }
+
   // Extract keywords
   const stopWords = ["the", "a", "of", "and", "do", "you", "have", "for", "in", "what", "is", "are", "about", "your"];
   const keywords = query
@@ -192,6 +295,7 @@ export async function searchFAQs(queryText: string) {
     return [];
   }
 }
+
 
 // Orchestrate the Groq Llama RAG Chatbot
 export async function runChatbot(
@@ -322,9 +426,36 @@ function runLocalFallback(
 }
 
 // Save lead
-export async function saveLead(name: string, phone: string) {
+export async function saveLead(name: string, phone: string, email?: string, telegram?: string) {
+  if (email && email.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const { sql } = await import("drizzle-orm");
+    const [existing] = await db
+      .select()
+      .from(leads)
+      .where(sql`LOWER(${leads.email}) = ${cleanEmail}`)
+      .limit(1);
+
+    if (existing) {
+      // Update existing lead details to ensure unique emails in leads table
+      return await db
+        .update(leads)
+        .set({
+          name: name.trim(),
+          phone: phone.trim(),
+          telegram: telegram ? telegram.trim() : existing.telegram,
+          createdAt: new Date(), // Push to top of list
+        })
+        .where(sql`LOWER(${leads.email}) = ${cleanEmail}`)
+        .returning();
+    }
+  }
+
+  // Insert new lead
   return await db.insert(leads).values({
-    name,
-    phone,
+    name: name.trim(),
+    phone: phone.trim(),
+    email: email ? email.trim() : null,
+    telegram: telegram ? telegram.trim() : null,
   }).returning();
 }

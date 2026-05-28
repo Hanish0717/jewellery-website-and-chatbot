@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, X, Bell, Phone, User, Check } from "lucide-react";
 import productsData from "@/data/products.json";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { subscribePriceAlertFn, loginClientFn, submitLeadFn } from "@/db/serverFunctions";
+import { toast } from "sonner";
 
 // Import all product assets to compile correctly under Vite
 import p1 from "@/assets/p1.jpg";
@@ -43,6 +45,7 @@ interface Product {
   craftsmanship: string;
   image: string;
   tags: string[];
+  offerText?: string;
 }
 
 const filters = ["All", "Bridal", "Gold", "Diamond", "Earrings", "Wedding"];
@@ -64,6 +67,245 @@ export function Products({
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  // Price Drop Alert States
+  const [submitting, setSubmitting] = useState(false);
+  const [subscriberName, setSubscriberName] = useState("");
+  const [subscriberPhone, setSubscriberPhone] = useState("");
+  const [subscriberEmail, setSubscriberEmail] = useState("");
+  const [subscriberTelegram, setSubscriberTelegram] = useState("");
+  const [selectedChannels, setSelectedChannels] = useState<{ whatsapp: boolean; email: boolean; telegram: boolean }>({
+    whatsapp: true,
+    email: false,
+    telegram: false,
+  });
+  const [alertProduct, setAlertProduct] = useState<Product | null>(null);
+  const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
+
+  // Authentication States
+  const [loggedInUser, setLoggedInUser] = useState<{ name: string; phone: string; email?: string; telegram?: string } | null>(null);
+  const [authTab, setAuthTab] = useState<"login" | "register">("login");
+  const [loginEmail, setLoginEmail] = useState("");
+
+  const openSubscribeModal = (product: Product) => {
+    setAlertProduct(product);
+    setSubscriptionSuccess(false);
+
+    // Sync logged in user from local storage
+    const stored = localStorage.getItem("atelier_client_user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setLoggedInUser(parsed);
+        setSubscriberName(parsed.name);
+        setSubscriberPhone(parsed.phone);
+        setSubscriberEmail(parsed.email || "");
+        setSubscriberTelegram(parsed.telegram || "");
+        setSelectedChannels({
+          whatsapp: true,
+          email: !!parsed.email,
+          telegram: !!parsed.telegram,
+        });
+      } catch {
+        setLoggedInUser(null);
+      }
+    } else {
+      setLoggedInUser(null);
+      setSubscriberName("");
+      setSubscriberPhone("");
+      setSubscriberEmail("");
+      setSubscriberTelegram("");
+      setLoginEmail("");
+      setSelectedChannels({
+        whatsapp: true,
+        email: false,
+        telegram: false,
+      });
+    }
+  };
+
+  const handleAlertSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let name = subscriberName;
+    let phone = subscriberPhone;
+    let email = subscriberEmail;
+    let telegram = subscriberTelegram;
+    let activeUser = loggedInUser;
+
+    // 1. Authenticate if not logged in
+    if (!activeUser) {
+      setSubmitting(true);
+      try {
+        if (authTab === "login") {
+          if (!loginEmail.trim()) {
+            toast.error("Please enter your email to log in");
+            setSubmitting(false);
+            return;
+          }
+          const res = await loginClientFn({ data: { email: loginEmail } });
+          if (res.success && res.client) {
+            const user = {
+              name: res.client.name,
+              phone: res.client.phone,
+              email: res.client.email || undefined,
+              telegram: res.client.telegram || undefined,
+            };
+            localStorage.setItem("atelier_client_user", JSON.stringify(user));
+            window.dispatchEvent(new Event("client-auth-change"));
+            setLoggedInUser(user);
+            activeUser = user;
+            name = user.name;
+            phone = user.phone;
+            email = user.email || "";
+            telegram = user.telegram || "";
+            setSelectedChannels({
+              whatsapp: true,
+              email: !!user.email,
+              telegram: !!user.telegram,
+            });
+            toast.success(`Welcome back, ${user.name}!`);
+          } else {
+            toast.error(res.message || "Account not found");
+            setSubmitting(false);
+            return;
+          }
+        } else {
+          // Register Flow
+          if (!subscriberName.trim()) {
+            toast.error("Please enter your name");
+            setSubmitting(false);
+            return;
+          }
+          if (!subscriberPhone.trim()) {
+            toast.error("Please enter your mobile number");
+            setSubmitting(false);
+            return;
+          }
+          const phoneRegex = /^[6-9]\d{9}$/;
+          if (!phoneRegex.test(subscriberPhone.replace(/\s+/g, ""))) {
+            toast.error("Please enter a valid 10-digit mobile number");
+            setSubmitting(false);
+            return;
+          }
+          if (!subscriberEmail.trim()) {
+            toast.error("Please enter your email address (required to log in later)");
+            setSubmitting(false);
+            return;
+          }
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(subscriberEmail.trim())) {
+            toast.error("Please enter a valid email address");
+            setSubmitting(false);
+            return;
+          }
+          if (selectedChannels.telegram && subscriberTelegram.trim()) {
+            const tgRegex = /^-?\d+$/;
+            if (!tgRegex.test(subscriberTelegram.trim())) {
+              toast.error("Please enter a valid numeric Telegram Chat ID");
+              setSubmitting(false);
+              return;
+            }
+          }
+
+          // Register client
+          await submitLeadFn({
+            data: {
+              name: subscriberName,
+              phone: subscriberPhone,
+              email: subscriberEmail.trim(),
+              telegram: subscriberTelegram.trim() || undefined,
+            },
+          });
+
+          const user = {
+            name: subscriberName,
+            phone: subscriberPhone,
+            email: subscriberEmail.trim(),
+            telegram: subscriberTelegram.trim() || undefined,
+          };
+          localStorage.setItem("atelier_client_user", JSON.stringify(user));
+          window.dispatchEvent(new Event("client-auth-change"));
+          setLoggedInUser(user);
+          activeUser = user;
+          name = user.name;
+          phone = user.phone;
+          email = user.email || "";
+          telegram = user.telegram || "";
+          toast.success(`Account registered! Welcome, ${user.name}!`);
+        }
+      } catch (err: any) {
+        console.error("Auth error:", err);
+        toast.error(err.message || "Failed to authenticate");
+        setSubmitting(false);
+        return;
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
+    // 2. Perform Subscription
+    const activeChannels = Object.entries(selectedChannels)
+      .filter(([_, enabled]) => enabled)
+      .map(([channel]) => channel);
+
+    if (activeChannels.length === 0) {
+      toast.error("Please select at least one notification channel");
+      return;
+    }
+
+    if (selectedChannels.email && !email.trim()) {
+      toast.error("Email required for email notifications");
+      return;
+    }
+    if (selectedChannels.telegram && !telegram.trim()) {
+      toast.error("Telegram Chat ID required for Telegram notifications");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      let numericId: number | null = null;
+      if (dbProducts) {
+        const match = dbProducts.find(
+          (dp) => String(dp.id) === String(alertProduct.id) || dp.name === alertProduct.name
+        );
+        if (match && match.id) {
+          numericId = Number(match.id);
+        }
+      }
+      if (numericId === null || isNaN(numericId)) {
+        numericId = parseInt(alertProduct.id);
+      }
+      if (isNaN(numericId)) {
+        numericId = 1;
+      }
+
+      await subscribePriceAlertFn({
+        data: {
+          name,
+          phone,
+          email: selectedChannels.email ? email.trim() : undefined,
+          telegram: selectedChannels.telegram ? telegram.trim() : undefined,
+          deliveryChannel: activeChannels.join(","),
+          productId: numericId,
+          productName: alertProduct.name,
+        },
+      });
+
+      setSubscriptionSuccess(true);
+      toast.success(`Alert registered for ${alertProduct.name}!`);
+      setTimeout(() => {
+        setAlertProduct(null);
+        setSubscriptionSuccess(false);
+      }, 2500);
+    } catch (err: any) {
+      console.error("[Products] Error subscribing to alerts:", err);
+      toast.error("Subscription failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const displayProducts: Product[] =
     dbProducts && dbProducts.length > 0
       ? dbProducts.map((p) => {
@@ -77,6 +319,7 @@ export function Products({
             craftsmanship: "Exquisite hand-finished luxury, designed with meticulous attention to detail.",
             image: filename,
             tags: [p.category],
+            offerText: p.offerText || undefined,
           };
         })
       : (productsData as Product[]);
@@ -141,6 +384,11 @@ export function Products({
                 <span className="absolute left-4 top-4 rounded-full bg-white/90 border border-gold/20 px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-ink font-medium shadow-sm">
                   {p.category}
                 </span>
+                {p.offerText && (
+                  <span className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-gold to-amber-600 text-ink px-3 py-1 text-[9px] uppercase tracking-[0.18em] font-bold shadow-[0_4px_12px_rgba(212,175,55,0.35)] animate-pulse">
+                    ✨ Offer
+                  </span>
+                )}
               </div>
 
               {/* Product Metadata & Actions */}
@@ -158,6 +406,12 @@ export function Products({
                 </div>
 
                 <div className="mt-5 pt-5 border-t border-gold/10 flex flex-col gap-4">
+                  {p.offerText && (
+                    <div className="rounded-lg bg-gold/5 border border-gold/25 p-2.5 text-[10px] text-ink font-medium leading-relaxed flex items-start gap-1.5 animate-fade-in">
+                      <span className="text-gold">✨</span>
+                      <span>{p.offerText}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                       Estimated Price
@@ -166,12 +420,20 @@ export function Products({
                       {p.price}
                     </span>
                   </div>
-                  <button
-                    onClick={() => onAskAi(p.name)}
-                    className="w-full inline-flex items-center justify-center gap-2.5 rounded-full border border-ink/80 bg-transparent py-3.5 text-[10px] uppercase tracking-[0.22em] text-ink font-semibold transition-all duration-300 hover:bg-ink hover:text-gold hover:scale-[1.02] shadow-sm cursor-pointer"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-gold animate-shimmer" /> Ask AI About This
-                  </button>
+                  <div className="flex gap-2.5">
+                    <button
+                      onClick={() => onAskAi(p.name)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-ink/80 bg-transparent py-3 text-[9px] uppercase tracking-[0.16em] text-ink font-semibold transition-all duration-300 hover:bg-ink hover:text-gold active:scale-95 shadow-sm cursor-pointer"
+                    >
+                      <Sparkles className="h-3 w-3 text-gold" /> Ask AI
+                    </button>
+                    <button
+                      onClick={() => openSubscribeModal(p)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-ink text-gold border border-gold/20 py-3 text-[9px] uppercase tracking-[0.16em] font-semibold transition-all duration-300 hover:bg-gold hover:text-ink hover:border-gold active:scale-95 shadow-sm cursor-pointer"
+                    >
+                      <Bell className="h-3 w-3 text-gold" /> Alert Me
+                    </button>
+                  </div>
                 </div>
               </div>
             </article>
@@ -221,6 +483,17 @@ export function Products({
                     {selectedProduct.description}
                   </p>
 
+                  {selectedProduct.offerText && (
+                    <div className="mt-4 p-3.5 rounded-xl bg-gradient-to-r from-gold/10 via-gold/5 to-transparent border border-gold/35 animate-fade-in shadow-xs">
+                      <p className="text-[9px] uppercase tracking-[0.25em] text-gold font-bold mb-1 flex items-center gap-1.5">
+                        <span>✨ Special Boutique Offer</span>
+                      </p>
+                      <p className="text-xs text-ink font-medium leading-relaxed">
+                        {selectedProduct.offerText}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="mt-6 p-4 rounded-xl bg-cream/40 border border-gold/10">
                     <p className="text-[9px] uppercase tracking-[0.25em] text-gold font-semibold mb-2">
                       Master Craftsmanship
@@ -237,18 +510,245 @@ export function Products({
                       onAskAi(selectedProduct.name);
                       setSelectedProduct(null);
                     }}
-                    className="w-full inline-flex items-center justify-center gap-2.5 rounded-full bg-ink py-4 text-[10px] uppercase tracking-[0.22em] text-gold font-semibold transition-all duration-300 hover:bg-gold hover:text-ink hover:scale-[1.02] shadow-md border border-gold/20 cursor-pointer"
+                    className="w-full inline-flex items-center justify-center gap-2.5 rounded-full bg-ink py-3 text-[10px] uppercase tracking-[0.22em] text-gold font-semibold transition-all duration-300 hover:bg-gold hover:text-ink hover:scale-[1.02] shadow-md border border-gold/20 cursor-pointer"
                   >
                     <Sparkles className="h-3.5 w-3.5 text-gold" /> Ask AI About This
                   </button>
                   <button
+                    onClick={() => {
+                      openSubscribeModal(selectedProduct);
+                      setSelectedProduct(null);
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2.5 rounded-full border border-ink/80 bg-transparent py-3 text-[10px] uppercase tracking-[0.22em] text-ink font-semibold transition-all duration-300 hover:bg-ink hover:text-gold hover:scale-[1.02] shadow-sm cursor-pointer"
+                  >
+                    <Bell className="h-3.5 w-3.5 text-gold" /> Get Price Alerts
+                  </button>
+                  <button
                     onClick={() => setSelectedProduct(null)}
-                    className="w-full inline-flex items-center justify-center py-2 text-[9px] uppercase tracking-[0.2em] text-muted-foreground font-medium hover:text-ink transition-colors cursor-pointer"
+                    className="w-full inline-flex items-center justify-center py-1 text-[9px] uppercase tracking-[0.2em] text-muted-foreground font-medium hover:text-ink transition-colors cursor-pointer"
                   >
                     Return to Atelier
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Price Alert Subscription Modal */}
+      <Dialog
+        open={alertProduct !== null}
+        onOpenChange={(open) => !open && setAlertProduct(null)}
+      >
+        <DialogContent className="max-w-md overflow-hidden bg-white/95 border border-gold/20 p-6 md:rounded-2xl shadow-2xl glass-luxury w-[90vw]">
+          {alertProduct && (
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-gold/10">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-gold animate-bounce" />
+                  <span className="font-display text-lg text-ink tracking-wide">Price & Offer Alerts</span>
+                </div>
+                <button
+                  onClick={() => setAlertProduct(null)}
+                  className="text-muted-foreground hover:text-ink cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {subscriptionSuccess ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center animate-fade-in">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 border border-emerald-200 mb-4 animate-scale-in">
+                    <Check className="h-7 w-7" />
+                  </div>
+                  <h3 className="font-display text-xl text-ink">Alert Subscription Active!</h3>
+                  <p className="mt-2 text-xs text-muted-foreground font-light leading-relaxed px-4">
+                    Thank you, {subscriberName || loggedInUser?.name}. We have registered your request. You will receive automated notifications on your selected channels if the price of **{alertProduct.name}** drops. 🔔
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleAlertSubscribe} className="mt-4 space-y-4 text-left">
+                  <p className="text-xs text-muted-foreground font-light leading-relaxed">
+                    Subscribe to receive instant automated notifications when the price drops or exclusive offers are released for the **{alertProduct.name}** (Current price: {alertProduct.price}).
+                  </p>
+
+                  {/* Channel Selection Checkboxes */}
+                  <div className="space-y-2 p-3 bg-cream/30 border border-gold/10 rounded-xl animate-fade-in">
+                    <label className="block text-[10px] uppercase tracking-wider text-ink font-semibold">
+                      Notify Me Via
+                    </label>
+                    <div className="flex flex-wrap gap-4 mt-1">
+                      <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedChannels.whatsapp}
+                          onChange={(e) => setSelectedChannels(prev => ({ ...prev, whatsapp: e.target.checked }))}
+                          className="h-4 w-4 rounded border-gold/25 text-gold focus:ring-0 cursor-pointer"
+                        />
+                        <span>WhatsApp</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedChannels.email}
+                          onChange={(e) => setSelectedChannels(prev => ({ ...prev, email: e.target.checked }))}
+                          className="h-4 w-4 rounded border-gold/25 text-gold focus:ring-0 cursor-pointer"
+                        />
+                        <span>Email</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedChannels.telegram}
+                          onChange={(e) => setSelectedChannels(prev => ({ ...prev, telegram: e.target.checked }))}
+                          className="h-4 w-4 rounded border-gold/25 text-gold focus:ring-0 cursor-pointer"
+                        />
+                        <span>Telegram</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {loggedInUser ? (
+                    /* LOGGED IN VIEW */
+                    <div className="p-3.5 bg-gold/5 border border-gold/15 rounded-xl space-y-1 animate-fade-in text-xs">
+                      <p className="text-muted-foreground font-light">Subscribing with your profile:</p>
+                      <p className="font-semibold text-ink">✨ {loggedInUser.name}</p>
+                      <p className="text-[10px] text-muted-foreground font-light">
+                        {loggedInUser.phone} {loggedInUser.email ? `• ${loggedInUser.email}` : ""} {loggedInUser.telegram ? `• Telegram: ${loggedInUser.telegram}` : ""}
+                      </p>
+                    </div>
+                  ) : (
+                    /* NOT LOGGED IN AUTH VIEW (Tabs) */
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="grid grid-cols-2 gap-2 border-b border-gold/10 pb-2">
+                        <button
+                          type="button"
+                          onClick={() => setAuthTab("login")}
+                          className={`py-2 text-[10px] uppercase tracking-wider font-semibold border-b-2 transition-all cursor-pointer ${
+                            authTab === "login" ? "border-gold text-gold" : "border-transparent text-muted-foreground"
+                          }`}
+                        >
+                          Login with Email
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAuthTab("register")}
+                          className={`py-2 text-[10px] uppercase tracking-wider font-semibold border-b-2 transition-all cursor-pointer ${
+                            authTab === "register" ? "border-gold text-gold" : "border-transparent text-muted-foreground"
+                          }`}
+                        >
+                          New Registration
+                        </button>
+                      </div>
+
+                      {authTab === "login" ? (
+                        /* LOGIN FORM */
+                        <div className="space-y-3 animate-fade-in">
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-ink font-semibold mb-1">
+                              Your Email Address
+                            </label>
+                            <input
+                              type="email"
+                              required
+                              value={loginEmail}
+                              onChange={(e) => setLoginEmail(e.target.value)}
+                              placeholder="E.g., name@domain.com"
+                              className="w-full rounded-lg bg-cream/30 border border-gold/10 px-4 py-2.5 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        /* REGISTER FORM */
+                        <div className="space-y-3 animate-fade-in">
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-ink font-semibold mb-1">
+                              Your Full Name
+                            </label>
+                            <div className="relative">
+                              <User className="absolute left-3 top-2.5 h-4 w-4 text-gold/60" />
+                              <input
+                                type="text"
+                                required
+                                value={subscriberName}
+                                onChange={(e) => setSubscriberName(e.target.value)}
+                                placeholder="E.g., Rajesh Kumar"
+                                className="w-full rounded-lg bg-cream/30 border border-gold/10 pl-9 pr-4 py-2.5 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-ink font-semibold mb-1">
+                              Mobile Number
+                            </label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gold/60" />
+                              <input
+                                type="tel"
+                                required
+                                value={subscriberPhone}
+                                onChange={(e) => setSubscriberPhone(e.target.value)}
+                                placeholder="10-Digit Mobile Number"
+                                className="w-full rounded-lg bg-cream/30 border border-gold/10 pl-9 pr-4 py-2.5 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-ink font-semibold mb-1">
+                              Email Address
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-gold/60 text-xs font-semibold">@</span>
+                              <input
+                                type="email"
+                                required
+                                value={subscriberEmail}
+                                onChange={(e) => setSubscriberEmail(e.target.value)}
+                                placeholder="E.g., name@domain.com"
+                                className="w-full rounded-lg bg-cream/30 border border-gold/10 pl-9 pr-4 py-2.5 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                              />
+                            </div>
+                          </div>
+
+                          {selectedChannels.telegram && (
+                            <div className="animate-fade-in space-y-1">
+                              <label className="block text-[10px] uppercase tracking-wider text-ink font-semibold mb-1">
+                                Telegram Chat ID (Optional)
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-2 text-gold/60 text-[9px] font-bold">ID</span>
+                                <input
+                                  type="text"
+                                  value={subscriberTelegram}
+                                  onChange={(e) => setSubscriberTelegram(e.target.value)}
+                                  placeholder="E.g., 987654321"
+                                  className="w-full rounded-lg bg-cream/30 border border-gold/10 pl-9 pr-4 py-2.5 text-xs text-ink outline-none transition-all focus:border-gold/60 focus:bg-white focus:ring-1 focus:ring-gold/30 font-light"
+                                />
+                              </div>
+                              <p className="text-[9px] text-muted-foreground font-light leading-normal bg-gold/5 p-2 rounded border border-gold/15">
+                                💡 Search and send a message to <b>@userinfobot</b> or <b>@GetIDsBot</b> on Telegram to instantly get your numeric Chat ID.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-ink py-3 text-[10px] uppercase tracking-[0.2em] text-gold font-semibold transition-all duration-300 hover:bg-gold hover:text-ink disabled:opacity-50 cursor-pointer"
+                    >
+                      {submitting ? "Processing..." : loggedInUser ? "Activate 1-Click Alert" : authTab === "login" ? "Login & Activate" : "Register & Activate"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
         </DialogContent>

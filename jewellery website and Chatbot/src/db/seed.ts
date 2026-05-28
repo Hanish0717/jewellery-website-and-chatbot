@@ -1,6 +1,8 @@
-import { db } from "./db";
+import { db, initPromise, isVectorSupported } from "./db";
 import { products, faqs } from "./schema";
+import { getEmbedding } from "./chatService";
 import * as dotenv from "dotenv";
+import { sql } from "drizzle-orm";
 
 dotenv.config();
 
@@ -48,6 +50,8 @@ const faqData = [
 ];
 
 async function seed() {
+  console.log("Waiting for database initialization...");
+  await initPromise;
   console.log("Starting database seed...");
 
   // 1. Clear existing entries
@@ -62,25 +66,48 @@ async function seed() {
   // 2. Seed Products
   console.log("Seeding products...");
   for (const product of productData) {
-    await db.insert(products).values({
-      name: product.name,
-      price: product.price,
-      priceVal: product.priceVal,
-      category: product.category,
-      description: product.description,
-      imageUrl: product.imageUrl,
-    });
+    let embedding: number[] | null = null;
+    if (isVectorSupported) {
+      const textToEmbed = `${product.name}. ${product.description}`;
+      embedding = await getEmbedding(textToEmbed);
+    }
+    
+    if (isVectorSupported && embedding) {
+      console.log(`  -> Generated embedding for product: "${product.name}"`);
+      await db.execute(sql`
+        INSERT INTO products (name, price, price_val, category, description, image_url, embedding)
+        VALUES (${product.name}, ${product.price}, ${product.priceVal}, ${product.category}, ${product.description}, ${product.imageUrl}, ${JSON.stringify(embedding)}::vector);
+      `);
+    } else {
+      await db.execute(sql`
+        INSERT INTO products (name, price, price_val, category, description, image_url)
+        VALUES (${product.name}, ${product.price}, ${product.priceVal}, ${product.category}, ${product.description}, ${product.imageUrl});
+      `);
+    }
   }
   console.log(`Successfully seeded ${productData.length} products!`);
 
   // 3. Seed FAQs
   console.log("Seeding FAQs...");
   for (const faq of faqData) {
-    await db.insert(faqs).values({
-      question: faq.question,
-      answer: faq.answer,
-      category: faq.category,
-    });
+    let embedding: number[] | null = null;
+    if (isVectorSupported) {
+      const textToEmbed = `Question: ${faq.question}\nAnswer: ${faq.answer}`;
+      embedding = await getEmbedding(textToEmbed);
+    }
+    
+    if (isVectorSupported && embedding) {
+      console.log(`  -> Generated embedding for FAQ: "${faq.question.substring(0, 30)}..."`);
+      await db.execute(sql`
+        INSERT INTO faqs (question, answer, category, embedding)
+        VALUES (${faq.question}, ${faq.answer}, ${faq.category}, ${JSON.stringify(embedding)}::vector);
+      `);
+    } else {
+      await db.execute(sql`
+        INSERT INTO faqs (question, answer, category)
+        VALUES (${faq.question}, ${faq.answer}, ${faq.category});
+      `);
+    }
   }
   console.log(`Successfully seeded ${faqData.length} FAQs!`);
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Menu, X, Sparkles } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 const links = [
   { label: "Home", href: "#home" },
@@ -9,10 +11,52 @@ const links = [
   { label: "Contact", href: "#contact" },
 ];
 
-export function Navbar({ onOpenChat }: { onOpenChat: () => void }) {
+export function Navbar({ 
+  onOpenChat,
+  storeSettings,
+}: { 
+  onOpenChat: () => void;
+  storeSettings?: {
+    gold22kRate: string;
+    gold18kRate: string;
+    promoText: string;
+    promoActive: boolean;
+  };
+}) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+  const [clientUser, setClientUser] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const checkUser = () => {
+      const stored = localStorage.getItem("atelier_client_user");
+      if (stored) {
+        try {
+          setClientUser(JSON.parse(stored));
+        } catch {
+          setClientUser(null);
+        }
+      } else {
+        setClientUser(null);
+      }
+    };
+    checkUser();
+
+    window.addEventListener("storage", checkUser);
+    window.addEventListener("client-auth-change", checkUser);
+
+    return () => {
+      window.removeEventListener("storage", checkUser);
+      window.removeEventListener("client-auth-change", checkUser);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("atelier_client_user");
+    window.dispatchEvent(new Event("client-auth-change"));
+    toast.success("Logged out successfully");
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -52,14 +96,61 @@ export function Navbar({ onOpenChat }: { onOpenChat: () => void }) {
     };
   }, []);
 
+  const showPromoBar = storeSettings && (storeSettings.promoActive || storeSettings.gold22kRate || storeSettings.gold18kRate);
+
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-        scrolled
-          ? "bg-white/85 backdrop-blur-md border-b border-gold/10 py-2.5 shadow-sm"
-          : "bg-transparent py-5"
-      }`}
-    >
+    <>
+      {/* Dynamic Info & Rates Marquee Bar */}
+      <div
+        className={`fixed left-0 right-0 z-50 bg-ink border-b border-gold/10 text-gold flex items-center justify-between px-6 py-2 transition-all duration-500 ease-in-out select-none ${
+          scrolled || !showPromoBar
+            ? "-translate-y-full opacity-0 pointer-events-none"
+            : "translate-y-0 opacity-100"
+        }`}
+        style={{ height: "36px", top: 0 }}
+      >
+        <div className="flex-1 overflow-hidden relative h-5 hidden md:flex items-center justify-start text-[9px] uppercase tracking-[0.2em] font-light">
+          {storeSettings?.promoActive && storeSettings?.promoText && (
+            <span className="animate-fade-in truncate">{storeSettings.promoText}</span>
+          )}
+        </div>
+        
+        {/* Mobile Promo view (centered) */}
+        <div className="flex md:hidden flex-1 overflow-hidden relative h-5 items-center justify-center text-[8px] uppercase tracking-[0.15em] font-light text-center">
+          {storeSettings?.promoActive && storeSettings?.promoText ? (
+            <span className="truncate">{storeSettings.promoText.replace(/[✨🔔]/g, "").trim()}</span>
+          ) : (
+            <span className="text-gold/80">Aurum Vault · Jubilee Hills</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4 text-[9px] uppercase tracking-[0.18em] font-semibold border-l border-gold/15 pl-4 ml-4 flex-shrink-0">
+          {storeSettings?.gold22kRate && (
+            <span className="hidden sm:inline">
+              Today's 22K Gold: <span className="text-white font-medium ml-1">{storeSettings.gold22kRate}/g</span>
+            </span>
+          )}
+          {storeSettings?.gold18kRate && (
+            <span className="hidden sm:inline">
+              18K Gold: <span className="text-white font-medium ml-1">{storeSettings.gold18kRate}/g</span>
+            </span>
+          )}
+          {/* Mobile minimal rates */}
+          <span className="inline sm:hidden text-[8px]">
+            Gold: <span className="text-white font-medium ml-1">{storeSettings.gold22kRate || "₹6.85k"}/g</span>
+          </span>
+        </div>
+      </div>
+
+      <header
+        className={`fixed left-0 right-0 z-45 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          scrolled
+            ? "top-0 bg-white/90 backdrop-blur-md border-b border-gold/15 py-3 shadow-[0_4px_30px_rgba(0,0,0,0.03)]"
+            : showPromoBar
+              ? "top-9 py-6 bg-transparent"
+              : "top-0 py-6 bg-transparent"
+        }`}
+      >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 md:px-10">
         <a href="#home" className="flex items-center gap-2.5 group">
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/60 transition-transform duration-500 group-hover:rotate-90">
@@ -93,7 +184,28 @@ export function Navbar({ onOpenChat }: { onOpenChat: () => void }) {
           })}
         </nav>
 
-        <div className="hidden lg:block">
+        <div className="hidden lg:flex items-center gap-6">
+          {clientUser ? (
+            <div className="flex items-center gap-3 bg-gold/10 border border-gold/25 rounded-full px-4 py-2 text-[10px] uppercase tracking-wider text-gold font-semibold shadow-inner animate-fade-in">
+              <span>✨ {clientUser.name}</span>
+              <span className="text-white/30">|</span>
+              <button
+                onClick={handleLogout}
+                className="text-white/70 hover:text-rose-400 hover:underline transition-colors uppercase cursor-pointer"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/admin"
+              className={`text-[10px] uppercase tracking-[0.25em] font-semibold transition-all hover:text-gold hover:scale-[1.03] cursor-pointer ${
+                scrolled ? "text-ink/80" : "text-white/90"
+              }`}
+            >
+              Admin Login
+            </Link>
+          )}
           <button
             onClick={onOpenChat}
             className={`group inline-flex items-center gap-2.5 rounded-full border border-gold/70 px-6 py-3 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 cursor-pointer ${
@@ -141,6 +253,28 @@ export function Navbar({ onOpenChat }: { onOpenChat: () => void }) {
                 </a>
               );
             })}
+            {clientUser ? (
+              <div className="flex flex-col gap-2 py-2 border-b border-gold/5 text-xs text-left">
+                <p className="text-ink/80 font-medium">✨ Account: <span className="text-gold font-bold">{clientUser.name}</span></p>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    handleLogout();
+                  }}
+                  className="text-left text-[10px] uppercase tracking-[0.2em] text-rose-400 font-bold hover:underline cursor-pointer"
+                >
+                  Logout Account
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/admin"
+                onClick={() => setOpen(false)}
+                className="text-xs uppercase tracking-[0.25em] font-medium py-2 border-b border-gold/5 text-gold hover:text-white transition-colors cursor-pointer"
+              >
+                Admin Login 🛡️
+              </Link>
+            )}
             <div className="gold-divider my-3 opacity-60" />
             <button
               onClick={() => {
@@ -155,5 +289,6 @@ export function Navbar({ onOpenChat }: { onOpenChat: () => void }) {
         </div>
       </div>
     </header>
+    </>
   );
 }
